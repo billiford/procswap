@@ -1,53 +1,86 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
+	procswap "github.com/billiford/procswap/pkg"
 	"github.com/billiford/procswap/pkg/dir"
 	"github.com/billiford/procswap/pkg/loop"
+	"github.com/mattn/go-colorable"
 	"github.com/urfave/cli/v2"
+
+	"github.com/logrusorgru/aurora"
+)
+
+const (
+	flagPriorityAliases = "p"
+	flagPriorityName    = "priority"
+	flagPriorityUsage   = "a directory to scan for executables"
+	flagSwapAliases     = "s"
+	flagSwapName        = "swap"
+	flagSwapUsage       = "a process that will run when any priority executable is not running"
 )
 
 func main() {
+	// Disable the log package from printing the date and time - we will handle that.
+	log.SetFlags(0)
+	log.SetOutput(colorable.NewColorableStdout())
+
 	app := &cli.App{
 		Flags: []cli.Flag{
 			&cli.StringSliceFlag{
-				Aliases:  []string{"pd"},
-				Name:     "priority-directories",
-				Usage:    "a list of directories that will be scanned for executables",
+				Aliases:  strings.Split(flagPriorityAliases, ","),
+				Name:     flagPriorityName,
+				Usage:    flagPriorityUsage,
 				Required: true,
 			},
 			&cli.StringSliceFlag{
-				Aliases:  []string{"bs"},
-				Name:     "background-scripts",
-				Usage:    "scripts that will run when any priority executable is not running",
+				Aliases:  strings.Split(flagSwapAliases, ","),
+				Name:     flagSwapName,
+				Usage:    flagSwapUsage,
 				Required: true,
 			},
 		},
 		Action: func(c *cli.Context) error {
 			l := loop.New()
 
-			// TODO add pretty logging.
-			// Priority processes and background-scripts.
+			// Priority and swap process setup.
 			var pe []os.FileInfo
-			for _, pd := range c.StringSlice("priority-directories") {
-				log.Printf("searching %s for executables\n", pd)
+			for _, pd := range c.StringSlice(flagPriorityName) {
+				procswap.LogInfo(fmt.Sprintf("searching %s for executables", pd))
 
 				e, err := dir.ListForExecutables(pd)
 				if err != nil {
-					return err
+					procswap.LogError(fmt.Sprintf("error searching %s for executables: %s", pd, err.Error()))
+
+					continue
 				}
 				pe = append(pe, e...)
 			}
 
-			log.Println("total priority executables found:", len(pe))
+			if len(pe) == 0 {
+				procswap.LogWarn("found no priority executables - swap processes will run indefinitely")
+			} else {
+				execs := strconv.Itoa(len(pe))
+				procswap.LogInfo(fmt.Sprintf("found %s priority executables", aurora.Bold(execs)))
+			}
 
-			l.WithPriorityExecutables(pe)
+			l.WithPriorities(pe)
 
-			log.Printf("registering %d background scripts\n", len(c.StringSlice("background-scripts")))
+			sp := c.StringSlice(flagSwapName)
+			if len(sp) == 0 {
+				procswap.LogFatal("no swap processes passed in")
+			}
 
-			l.WithBackgroundScripts(c.StringSlice("background-scripts"))
+			l.WithSwaps(sp)
+
+			swaps := strconv.Itoa(len(sp))
+			procswap.LogInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swaps)))
+
 			l.Run()
 
 			return nil
