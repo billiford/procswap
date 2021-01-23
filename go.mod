@@ -3,11 +3,14 @@ module github.com/billiford/procswap
 go 1.15
 
 require (
+	github.com/google/uuid v1.2.0
 	github.com/keegancsmith/rpc v1.3.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/nsf/gocode v0.0.0-20190302080247-5bee97b48836 // indirect
+	github.com/onsi/ginkgo v1.14.2
+	github.com/onsi/gomega v1.10.4
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/stamblerre/gocode v1.0.0 // indirect
 	github.com/urfave/cli v1.22.5

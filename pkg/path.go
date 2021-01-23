@@ -27,7 +27,7 @@ func ProcessList(path string) ([]os.FileInfo, error) {
 		return files, nil
 	}
 
-	LogInfo(fmt.Sprintf("searching %s for executables", path))
+	logInfo(fmt.Sprintf("searching %s for executables", path))
 
 	// Only list files that end in '.exe'.
 	libRegEx := regexp.MustCompile("^.*.exe$")

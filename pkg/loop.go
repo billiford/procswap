@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +80,7 @@ func (l *loop) swap() {
 	// It would be nice to just have a watch.
 	processes, err := ps.Processes()
 	if err != nil {
-		LogError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
+		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
 	}
 
 	// Make a map of the processes so the lookup is O(1).
@@ -99,24 +98,30 @@ func (l *loop) swap() {
 		}
 	}
 
+	// Remove any duplicates and sort the priorities.
 	priorities = removeDuplicates(priorities)
 	sort.Strings(priorities)
 
-	if len(priorities) > 0 && !started && firstLoop {
-		LogWarn(fmt.Sprintf("not starting swap processes, priority processe(s) already running: %s",
+	switch {
+	case len(priorities) > 0 && !started && firstLoop:
+		// Do this if it is our first loop and priority processes are already running.
+		logWarn(fmt.Sprintf("not starting swap processes, priority processes already running: %s",
 			aurora.Bold(strings.Join(priorities, ", "))))
-	} else if len(priorities) > 0 && started {
+	case len(priorities) > 0 && started:
+		// Do this if there are any priorities started and we need to stop all running swap processes.
 		started = false
 
 		if len(runningSwaps) > 0 {
-			LogWarn(fmt.Sprintf("stopping all swap process - priority processe(s) started: %s",
+			logInfo(fmt.Sprintf("priority processes started: %s",
 				aurora.Bold(strings.Join(priorities, ", "))))
 
 			l.stopSwaps(processes)
 		}
-	} else if len(priorities) == 0 && !started {
+	case len(priorities) == 0 && !started:
+		// Do this when there are no priotiies started and we need to start all the swap processes.
 		started = true
-		LogInfo("no priority processe(s) running, starting all swap processes")
+
+		logInfo("no priority processes running, starting all swap processes")
 
 		l.startSwaps()
 	}
@@ -124,19 +129,19 @@ func (l *loop) swap() {
 
 func (l *loop) startSwaps() {
 	for _, s := range l.swaps {
-		// Print this without a newline at the end.
-		LogInfo(fmt.Sprintf("starting swap process %s...", aurora.Bold(s)), false)
+		// Print this without a newline at the end since we'll be printing the status later.
+		logInfo(fmt.Sprintf("%s %s...", aurora.Green("start"), aurora.Bold(s)), false)
 		cmd := exec.Command(s)
 
 		err := cmd.Start()
 		if err != nil {
-			log.Printf(" %s", aurora.Red("FAILED"))
-			LogError(fmt.Sprintf("error starting swap process %s: %s", s, err.Error()))
+			printStatus(err)
+			logError(fmt.Sprintf("error starting swap process %s: %s", s, err.Error()))
 
 			continue
 		}
 
-		log.Printf(" %s", aurora.Green("OK"))
+		printStatus(err)
 
 		s := swap{
 			cmd: cmd,
@@ -153,9 +158,9 @@ func (l *loop) startSwaps() {
 // We should really build a process ID tree here, but for now the killing of child
 // processes is pretty simple.
 func (l *loop) stopSwaps(processes []ps.Process) {
-	if len(runningSwaps) > 0 {
-		rs := strconv.Itoa(len(runningSwaps))
-		LogInfo(fmt.Sprintf("stopping %s swap processes", aurora.Bold(rs)))
+	if len(runningSwaps) == 0 {
+		logWarn("no swap processes to stop")
+		return
 	}
 
 	// Store a list of pids that were unsuccessfully killed to add to the list
@@ -163,29 +168,29 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 	pids := map[int]bool{}
 
 	for _, swap := range runningSwaps {
+		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.cmd.Path)), false)
+
 		err := killChildProcesses(processes, swap.pid)
 		if err != nil {
-			log.Printf(" %s", aurora.Red("FAILED"))
-			LogError(fmt.Sprintf("error killing child processes for %s: %s", swap.cmd.Path, err.Error()))
+			printStatus(err)
+			logError(fmt.Sprintf("error killing child processes for %s: %s", swap.cmd.Path, err.Error()))
 
 			pids[swap.pid] = true
 
 			continue
 		}
-
-		LogInfo(fmt.Sprintf("stopping swap process %s...", aurora.Bold(swap.cmd.Path)), false)
 
 		err = swap.cmd.Process.Kill()
 		if err != nil {
-			log.Printf(" %s", aurora.Red("FAILED"))
-			LogError(fmt.Sprintf("error killing parent processes %s: %s", swap.cmd.Path, err.Error()))
+			printStatus(err)
+			logError(fmt.Sprintf("error killing processes %s: %s", swap.cmd.Path, err.Error()))
 
 			pids[swap.pid] = true
 
 			continue
 		}
 
-		log.Printf(" %s", aurora.Green("OK"))
+		printStatus(err)
 	}
 
 	tmpRunningSwaps := []swap{}
@@ -202,28 +207,30 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 	runningSwaps = tmpRunningSwaps
 }
 
+// printStatus is a small helper function to either print "OK"
+// or "FAILED" in appropriate colors based on an error input.
+func printStatus(err error) {
+	if err == nil {
+		log.Printf(" %s", aurora.Green("OK"))
+	} else {
+		log.Printf(" %s", aurora.Red("FAILED"))
+	}
+}
+
 // killChildProcesses kills all processes that have a parent process ID
 // of the process ID passed in.
 func killChildProcesses(processes []ps.Process, pid int) error {
 	for _, process := range processes {
 		if process.PPid() == pid {
-			LogInfo(fmt.Sprintf("killing child process %s...", aurora.Bold(process.Executable())), false)
-
 			p, err := os.FindProcess(process.Pid())
 			if err != nil {
-				log.Printf(" %s", aurora.Red("FAILED"))
-
 				return fmt.Errorf("error finding process %s: %w", process.Executable(), err)
 			}
 
 			err = p.Kill()
 			if err != nil {
-				log.Printf(" %s", aurora.Red("FAILED"))
-
 				return fmt.Errorf("error killing process %s: %w", process.Executable(), err)
 			}
-
-			log.Printf(" %s", aurora.Green("OK"))
 		}
 	}
 

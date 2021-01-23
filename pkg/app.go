@@ -11,6 +11,10 @@ import (
 )
 
 const (
+	appName             = "procwap"
+	appUsage            = "run processes when any prioritized process is not running"
+	appUsageText        = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
+	authorName          = "billiford"
 	flagPriorityAliases = "p"
 	flagPriorityName    = "priority"
 	flagPriorityUsage   = "a path to a file or directory to scan for executables"
@@ -19,43 +23,52 @@ const (
 	flagSwapUsage       = "a process that will run when any priority executable is not running"
 )
 
+var (
+	version  string
+	Version  string
+	revision string
+)
+
 // NewApp returns a urfave/cli app that runs the loops to
 // check for prioritized processes.
 func NewApp() *cli.App {
-	return &cli.App{
-		Name:  "procswap",
-		Usage: "prioritize processes",
-		// Version:     "",
-		Description: "run processes when any prioritized process is not running",
-		Commands:    []*cli.Command{},
-		Flags: []cli.Flag{
-			&cli.StringSliceFlag{
-				Aliases:  strings.Split(flagPriorityAliases, ","),
-				Name:     flagPriorityName,
-				Usage:    flagPriorityUsage,
-				Required: true,
-			},
-			&cli.StringSliceFlag{
-				Aliases:  strings.Split(flagSwapAliases, ","),
-				Name:     flagSwapName,
-				Usage:    flagSwapUsage,
-				Required: true,
-			},
-		},
-		Action: func(c *cli.Context) error {
-			run(c)
+	app := cli.NewApp()
+	app.Action = run
+	app.Authors = authors()
+	app.Flags = flags()
+	app.Name = appName
+	app.Usage = appUsage
+	app.UsageText = appUsageText
 
-			return nil
-		},
-		Authors: []*cli.Author{
-			&cli.Author{
-				Name: "billiford",
-			},
+	return app
+}
+
+func authors() []*cli.Author {
+	return []*cli.Author{
+		&cli.Author{
+			Name: authorName,
 		},
 	}
 }
 
-func run(c *cli.Context) {
+func flags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringSliceFlag{
+			Aliases:  strings.Split(flagPriorityAliases, ","),
+			Name:     flagPriorityName,
+			Usage:    flagPriorityUsage,
+			Required: true,
+		},
+		&cli.StringSliceFlag{
+			Aliases:  strings.Split(flagSwapAliases, ","),
+			Name:     flagSwapName,
+			Usage:    flagSwapUsage,
+			Required: true,
+		},
+	}
+}
+
+func run(c *cli.Context) error {
 	loop := NewLoop()
 	// These are our "priority executables".
 	pe := []os.FileInfo{}
@@ -65,7 +78,7 @@ func run(c *cli.Context) {
 	for _, pd := range paths {
 		e, err := ProcessList(pd)
 		if err != nil {
-			LogError(fmt.Sprintf("error searching %s for executables: %s", pd, err.Error()))
+			logError(fmt.Sprintf("error searching %s for executables: %s", pd, err.Error()))
 
 			continue
 		}
@@ -74,10 +87,10 @@ func run(c *cli.Context) {
 	}
 
 	if len(pe) == 0 {
-		LogWarn("found no priority executables - swap processes will run indefinitely")
+		logWarn("found no priority executables - swap processes will run indefinitely")
 	} else {
 		execs := strconv.Itoa(len(pe))
-		LogInfo(fmt.Sprintf("found %s priority executables", aurora.Bold(execs)))
+		logInfo(fmt.Sprintf("found %s priority executables", aurora.Bold(execs)))
 	}
 
 	loop.WithPriorities(pe)
@@ -88,8 +101,10 @@ func run(c *cli.Context) {
 	loop.WithSwaps(sp)
 
 	swaps := strconv.Itoa(len(sp))
-	LogInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swaps)))
+	logInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swaps)))
 
 	// This will run indefinitely, until the user exits.
 	loop.Run()
+
+	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/shiena/ansicolor"
 )
 
-type LogLevel string
+type logLevel string
 
 const (
 	// green   = "\033[97;42m"
@@ -20,43 +20,15 @@ const (
 	cyan  = "\033[97;46m"
 	reset = "\033[0m"
 
-	logLevelDebug = LogLevel("DEBUG")
-	logLevelInfo  = LogLevel("INFO")
-	logLevelWarn  = LogLevel("WARN")
-	logLevelError = LogLevel("ERROR")
-	logLevelFatal = LogLevel("FATAL")
+	logLevelDebug = logLevel("DEBUG")
+	logLevelInfo  = logLevel("INFO")
+	logLevelWarn  = logLevel("WARN")
+	logLevelError = logLevel("ERROR")
+	logLevelFatal = logLevel("FATAL")
 )
 
-func LogDebug(message string, newline ...bool) {
-	l(logLevelDebug, message, newline...)
-}
-
-func LogInfo(message string, newline ...bool) {
-	l(logLevelInfo, message, newline...)
-}
-
-func LogWarn(message string, newline ...bool) {
-	l(logLevelWarn, message, newline...)
-}
-
-func LogError(message string, newline ...bool) {
-	l(logLevelError, message, newline...)
-}
-
-// Log and exit.
-func LogFatal(message string, newline ...bool) {
-	l(logLevelFatal, message, newline...)
-	os.Exit(1)
-}
-
-// l logs a given message in a nice format.
-//
-// A single letter function name? I can't just name it "log"
-// since that overwrites the package imported that we need.
-//
-// Certainly there's a convention for this... I'll get back
-// to it later.
-func l(level LogLevel, message string, newline ...bool) {
+// logWithLevel logs a given message in a nice format.
+func logWithLevel(level logLevel, message string, newline ...bool) {
 	nl := true
 
 	// Allow us to define if a newline is appended or not.
@@ -93,4 +65,26 @@ func l(level LogLevel, message string, newline ...bool) {
 		logColor, level, reset,
 		message,
 	)
+}
+
+func logDebug(message string, newline ...bool) {
+	logWithLevel(logLevelDebug, message, newline...)
+}
+
+func logInfo(message string, newline ...bool) {
+	logWithLevel(logLevelInfo, message, newline...)
+}
+
+func logWarn(message string, newline ...bool) {
+	logWithLevel(logLevelWarn, message, newline...)
+}
+
+func logError(message string, newline ...bool) {
+	logWithLevel(logLevelError, message, newline...)
+}
+
+// Log and exit.
+func logFatal(message string, newline ...bool) {
+	logWithLevel(logLevelFatal, message, newline...)
+	os.Exit(1)
 }
