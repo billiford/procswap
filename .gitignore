@@ -17,3 +17,4 @@ vendor/
 # Other stuff
 bin/
 scratch/
+/procswap

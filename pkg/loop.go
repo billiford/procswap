@@ -1,4 +1,4 @@
-package loop
+package procswap
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	procswap "github.com/billiford/procswap/pkg"
 	"github.com/logrusorgru/aurora"
 	"github.com/mitchellh/go-ps"
 )
@@ -40,8 +39,8 @@ type loop struct {
 	priorities []os.FileInfo
 }
 
-// New returns a new Loop.
-func New() Loop {
+// NewLoop returns a new Loop.
+func NewLoop() Loop {
 	return &loop{
 		swaps:      []string{},
 		priorities: []os.FileInfo{},
@@ -82,7 +81,7 @@ func (l *loop) swap() {
 	// It would be nice to just have a watch.
 	processes, err := ps.Processes()
 	if err != nil {
-		procswap.LogError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
+		LogError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
 	}
 
 	// Make a map of the processes so the lookup is O(1).
@@ -104,20 +103,20 @@ func (l *loop) swap() {
 	sort.Strings(priorities)
 
 	if len(priorities) > 0 && !started && firstLoop {
-		procswap.LogWarn(fmt.Sprintf("not starting swap processes, priority processe(s) already running: %s",
+		LogWarn(fmt.Sprintf("not starting swap processes, priority processe(s) already running: %s",
 			aurora.Bold(strings.Join(priorities, ", "))))
 	} else if len(priorities) > 0 && started {
 		started = false
 
 		if len(runningSwaps) > 0 {
-			procswap.LogWarn(fmt.Sprintf("stopping all swap process - priority processe(s) started: %s",
+			LogWarn(fmt.Sprintf("stopping all swap process - priority processe(s) started: %s",
 				aurora.Bold(strings.Join(priorities, ", "))))
 
 			l.stopSwaps(processes)
 		}
 	} else if len(priorities) == 0 && !started {
 		started = true
-		procswap.LogInfo("no priority processe(s) running, starting all swap processes")
+		LogInfo("no priority processe(s) running, starting all swap processes")
 
 		l.startSwaps()
 	}
@@ -126,13 +125,13 @@ func (l *loop) swap() {
 func (l *loop) startSwaps() {
 	for _, s := range l.swaps {
 		// Print this without a newline at the end.
-		procswap.LogInfo(fmt.Sprintf("starting swap process %s...", aurora.Bold(s)), false)
+		LogInfo(fmt.Sprintf("starting swap process %s...", aurora.Bold(s)), false)
 		cmd := exec.Command(s)
 
 		err := cmd.Start()
 		if err != nil {
 			log.Printf(" %s", aurora.Red("FAILED"))
-			procswap.LogError(fmt.Sprintf("error starting swap process %s: %s", s, err.Error()))
+			LogError(fmt.Sprintf("error starting swap process %s: %s", s, err.Error()))
 
 			continue
 		}
@@ -156,7 +155,7 @@ func (l *loop) startSwaps() {
 func (l *loop) stopSwaps(processes []ps.Process) {
 	if len(runningSwaps) > 0 {
 		rs := strconv.Itoa(len(runningSwaps))
-		procswap.LogInfo(fmt.Sprintf("stopping %s swap processes", aurora.Bold(rs)))
+		LogInfo(fmt.Sprintf("stopping %s swap processes", aurora.Bold(rs)))
 	}
 
 	// Store a list of pids that were unsuccessfully killed to add to the list
@@ -167,19 +166,19 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 		err := killChildProcesses(processes, swap.pid)
 		if err != nil {
 			log.Printf(" %s", aurora.Red("FAILED"))
-			procswap.LogError(fmt.Sprintf("error killing child processes for %s: %s", swap.cmd.Path, err.Error()))
+			LogError(fmt.Sprintf("error killing child processes for %s: %s", swap.cmd.Path, err.Error()))
 
 			pids[swap.pid] = true
 
 			continue
 		}
 
-		procswap.LogInfo(fmt.Sprintf("stopping swap process %s...", aurora.Bold(swap.cmd.Path)), false)
+		LogInfo(fmt.Sprintf("stopping swap process %s...", aurora.Bold(swap.cmd.Path)), false)
 
 		err = swap.cmd.Process.Kill()
 		if err != nil {
 			log.Printf(" %s", aurora.Red("FAILED"))
-			procswap.LogError(fmt.Sprintf("error killing parent processes %s: %s", swap.cmd.Path, err.Error()))
+			LogError(fmt.Sprintf("error killing parent processes %s: %s", swap.cmd.Path, err.Error()))
 
 			pids[swap.pid] = true
 
@@ -208,7 +207,7 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 func killChildProcesses(processes []ps.Process, pid int) error {
 	for _, process := range processes {
 		if process.PPid() == pid {
-			procswap.LogInfo(fmt.Sprintf("killing child process %s...", aurora.Bold(process.Executable())), false)
+			LogInfo(fmt.Sprintf("killing child process %s...", aurora.Bold(process.Executable())), false)
 
 			p, err := os.FindProcess(process.Pid())
 			if err != nil {

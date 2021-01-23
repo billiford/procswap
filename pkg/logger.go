@@ -43,8 +43,10 @@ func LogError(message string, newline ...bool) {
 	l(logLevelError, message, newline...)
 }
 
+// Log and exit.
 func LogFatal(message string, newline ...bool) {
 	l(logLevelFatal, message, newline...)
+	os.Exit(1)
 }
 
 // l logs a given message in a nice format.
