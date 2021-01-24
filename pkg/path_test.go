@@ -60,7 +60,7 @@ var _ = Describe("Path", func() {
 
 		Context("when the path is a directory", func() {
 			BeforeEach(func() {
-				path = filepath.FromSlash(path + "/test")
+				path = filepath.FromSlash(path + "/test/priorities")
 			})
 
 			It("walks the directory returning all .exe files", func() {

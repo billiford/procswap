@@ -14,10 +14,7 @@ import (
 )
 
 var (
-	defaultWaitPeriodSeconds = 10
-	runningSwaps             []swap
-	started                  bool
-	firstLoop                bool
+	defaultPollInterval = 10
 )
 
 type swap struct {
@@ -28,30 +25,50 @@ type swap struct {
 // Loop is the interface that runs indefinitely.
 type Loop interface {
 	Run()
-	WithSwaps([]string)
+	WithLimit(int)
+	WithPollInterval(int)
 	WithPriorities([]os.FileInfo)
+	WithSwaps([]string)
 }
 
 // loop holds the priority executables and swap processes defined at startup.
 type loop struct {
-	swaps      []string
-	priorities []os.FileInfo
+	swaps        []string
+	priorities   []os.FileInfo
+	limit        int
+	pollInterval int
+	loopCount    int
+	started      bool
+	firstLoop    bool
+	runningSwaps []swap
 }
 
 // NewLoop returns a new Loop.
 func NewLoop() Loop {
 	return &loop{
-		swaps:      []string{},
-		priorities: []os.FileInfo{},
+		swaps:        []string{},
+		priorities:   []os.FileInfo{},
+		limit:        0,
+		loopCount:    0,
+		pollInterval: defaultPollInterval,
+		runningSwaps: []swap{},
 	}
 }
 
-func (l *loop) WithSwaps(swaps []string) {
-	l.swaps = swaps
+func (l *loop) WithLimit(limit int) {
+	l.limit = limit
+}
+
+func (l *loop) WithPollInterval(pollInterval int) {
+	l.pollInterval = pollInterval
 }
 
 func (l *loop) WithPriorities(priorities []os.FileInfo) {
 	l.priorities = priorities
+}
+
+func (l *loop) WithSwaps(swaps []string) {
+	l.swaps = swaps
 }
 
 // Run runs the main loop. It gathers all "priority processes" and runs any swap processes
@@ -62,14 +79,19 @@ func (l *loop) WithPriorities(priorities []os.FileInfo) {
 func (l *loop) Run() {
 	for {
 		l.swap()
-		wait()
+		l.wait()
 
-		firstLoop = false
+		l.firstLoop = false
+		l.loopCount++
+
+		if l.loopCount == l.limit {
+			break
+		}
 	}
 }
 
-func wait() {
-	time.Sleep(time.Duration(defaultWaitPeriodSeconds) * time.Second)
+func (l *loop) wait() {
+	time.Sleep(time.Duration(l.pollInterval) * time.Second)
 }
 
 // swap running swap processes for priority executables or
@@ -103,23 +125,23 @@ func (l *loop) swap() {
 	sort.Strings(priorities)
 
 	switch {
-	case len(priorities) > 0 && !started && firstLoop:
+	case len(priorities) > 0 && !l.started && l.firstLoop:
 		// Do this if it is our first loop and priority processes are already running.
 		logWarn(fmt.Sprintf("not starting swap processes, priority processes already running: %s",
 			aurora.Bold(strings.Join(priorities, ", "))))
-	case len(priorities) > 0 && started:
+	case len(priorities) > 0 && l.started:
 		// Do this if there are any priorities started and we need to stop all running swap processes.
-		started = false
+		l.started = false
 
-		if len(runningSwaps) > 0 {
+		if len(l.runningSwaps) > 0 {
 			logInfo(fmt.Sprintf("priority processes started: %s",
 				aurora.Bold(strings.Join(priorities, ", "))))
 
 			l.stopSwaps(processes)
 		}
-	case len(priorities) == 0 && !started:
+	case len(priorities) == 0 && !l.started:
 		// Do this when there are no priotiies started and we need to start all the swap processes.
-		started = true
+		l.started = true
 
 		logInfo("no priority processes running, starting all swap processes")
 
@@ -147,7 +169,7 @@ func (l *loop) startSwaps() {
 			cmd: cmd,
 			pid: cmd.Process.Pid,
 		}
-		runningSwaps = append(runningSwaps, s)
+		l.runningSwaps = append(l.runningSwaps, s)
 	}
 }
 
@@ -158,8 +180,9 @@ func (l *loop) startSwaps() {
 // We should really build a process ID tree here, but for now the killing of child
 // processes is pretty simple.
 func (l *loop) stopSwaps(processes []ps.Process) {
-	if len(runningSwaps) == 0 {
+	if len(l.runningSwaps) == 0 {
 		logWarn("no swap processes to stop")
+
 		return
 	}
 
@@ -167,7 +190,7 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 	// of currently running swap processes.
 	pids := map[int]bool{}
 
-	for _, swap := range runningSwaps {
+	for _, swap := range l.runningSwaps {
 		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.cmd.Path)), false)
 
 		err := killChildProcesses(processes, swap.pid)
@@ -197,14 +220,14 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 
 	// If any swap processes failed to stop, add them here.
 	// TODO we need to figure out a way to come back and retry killing these processes.
-	for _, swap := range runningSwaps {
+	for _, swap := range l.runningSwaps {
 		if pids[swap.pid] {
 			tmpRunningSwaps = append(tmpRunningSwaps, swap)
 		}
 	}
 
 	// Since we're shutting down everything, reset the currently running commands.
-	runningSwaps = tmpRunningSwaps
+	l.runningSwaps = tmpRunningSwaps
 }
 
 // printStatus is a small helper function to either print "OK"
