@@ -2,7 +2,6 @@ package procswap
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"sort"
@@ -234,9 +233,9 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 // or "FAILED" in appropriate colors based on an error input.
 func printStatus(err error) {
 	if err == nil {
-		log.Printf(" %s", aurora.Green("OK"))
+		fmt.Printf(" %s\n", aurora.Green("OK"))
 	} else {
-		log.Printf(" %s", aurora.Red("FAILED"))
+		fmt.Printf(" %s\n", aurora.Red("FAILED"))
 	}
 }
 

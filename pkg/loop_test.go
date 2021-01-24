@@ -83,8 +83,9 @@ var _ = Describe("Loop", func() {
 				prioritiesPath := filepath.FromSlash(currentDir + "/test/priorities")
 				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables.*`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `no priority processes running, starting all swap processes.*`))
-				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + guid + `.*`))
-				Eventually(buffer).Should(Say(fmtErrorLog + `error starting swap process .*`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swap + `.*\.\.\. .*FAILED.*`))
+				// The error will likely change cross platform, so don't test too much.
+				Eventually(buffer).Should(Say(fmtErrorLog + `error starting swap process ` + swap + ".*"))
 			})
 		})
 
@@ -93,7 +94,7 @@ var _ = Describe("Loop", func() {
 				prioritiesPath := filepath.FromSlash(currentDir + "/test/priorities")
 				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `no priority processes running, starting all swap processes`))
-				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFile(currentDir) + `.*`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFile(currentDir) + `.*\.\.\. .*OK.*`))
 			})
 		})
 	})

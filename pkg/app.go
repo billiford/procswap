@@ -18,10 +18,12 @@ const (
 	authorName              = "billiford"
 	flagLimitAliases        = "l"
 	flagLimitName           = "limit"
-	flagLimitUsage          = "a limit to a number of times the loop runs (default 0, infinite)"
+	flagLimitUsage          = "a limit to a number of times the loop runs (0 = infinite)"
+	flagLimitValue          = 0
 	flagPollIntervalAliases = "pi"
 	flagPollIntervalName    = "poll-interval"
-	flagPollIntervalUsage   = "time in seconds to wait to poll for running processes (default 10 seconds)"
+	flagPollIntervalUsage   = "time in seconds to wait to poll for running processes"
+	flagPollIntervalValue   = 10
 	flagPriorityAliases     = "p"
 	flagPriorityName        = "priority"
 	flagPriorityUsage       = "a path to a file or directory to scan for executables"
@@ -32,7 +34,6 @@ const (
 
 var (
 	version  string
-	Version  string
 	revision string
 )
 
@@ -76,11 +77,13 @@ func flags() []cli.Flag {
 			Aliases: strings.Split(flagLimitAliases, ","),
 			Name:    flagLimitName,
 			Usage:   flagLimitUsage,
+			Value:   flagLimitValue,
 		},
 		&cli.IntFlag{
 			Aliases: strings.Split(flagPollIntervalAliases, ","),
 			Name:    flagPollIntervalName,
 			Usage:   flagPollIntervalUsage,
+			Value:   flagPollIntervalValue,
 		},
 	}
 }
