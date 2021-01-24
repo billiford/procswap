@@ -8,7 +8,7 @@ It works by allowing the user to pass in their mining scripts and scanning a giv
 
 ### Getting Started
 
-- Download the latest version from the [releases page](https://github.com/billiford/procswap/releases).
+- Download the latest version from the [releases page](https://github.com/billiford/procswap/releases) or build it from source if you don't like running random executables found on the internet.
 - You'll have to [open a command prompt](https://www.howtogeek.com/235101/10-ways-to-open-the-command-prompt-in-windows-10/#:~:text=Open%20a%20Command%20Prompt%20in%20Admin%20Mode%20from,from%20the%20File%20Explorer%20Address%20Bar.%20More%20items) and you might want to run it as Administrator.
 - Change directory to where you downloaded the `procswap.exe` (probably your Downloads folder).
 
