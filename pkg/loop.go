@@ -10,6 +10,7 @@ import (
 
 	"github.com/logrusorgru/aurora"
 	"github.com/mitchellh/go-ps"
+	"github.com/shiena/ansicolor"
 )
 
 var (
@@ -38,7 +39,6 @@ type loop struct {
 	pollInterval int
 	loopCount    int
 	started      bool
-	firstLoop    bool
 	runningSwaps []swap
 }
 
@@ -54,18 +54,22 @@ func NewLoop() Loop {
 	}
 }
 
+// WithLimit sets a limit on the loop.
 func (l *loop) WithLimit(limit int) {
 	l.limit = limit
 }
 
+// WithPollInterval sets the poll interval on the loop.
 func (l *loop) WithPollInterval(pollInterval int) {
 	l.pollInterval = pollInterval
 }
 
+// WithPriorities sets the priority processes for the loop.
 func (l *loop) WithPriorities(priorities []os.FileInfo) {
 	l.priorities = priorities
 }
 
+// WithSwaps sets the swap scripts/executables for the loop.
 func (l *loop) WithSwaps(swaps []string) {
 	l.swaps = swaps
 }
@@ -77,75 +81,95 @@ func (l *loop) WithSwaps(swaps []string) {
 // stop, all swap processes are kicked off again.
 func (l *loop) Run() {
 	for {
-		l.swap()
-		l.wait()
-
-		l.firstLoop = false
-		l.loopCount++
-
-		if l.loopCount == l.limit {
+		if l.done() {
 			break
 		}
+
+		l.loop()
+		l.wait()
 	}
 }
 
-func (l *loop) wait() {
-	time.Sleep(time.Duration(l.pollInterval) * time.Second)
-}
-
-// swap running swap processes for priority executables or
-// start the swaps if no priority process is running and they have not
+// loop runs the main loop. Swap running processes for priority executables or
+// start the swap processes if no priority process is running and they have not
 // already been started.
-func (l *loop) swap() {
+func (l *loop) loop() {
 	// This seems to be a fairly cheap call to check the running processes.
 	// It would be nice to just have a watch.
 	processes, err := ps.Processes()
 	if err != nil {
 		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
+
+		return
 	}
 
+	// List running priorities from the current processes running.
+	runningPriorities := l.listRunningPriorities(processes)
+
+	switch {
+	case len(runningPriorities) > 0 && !l.started && l.loopCount == 0:
+		// It is our first loop and priority processes are already running so log this.
+		logWarn(fmt.Sprintf("not starting swap processes, priority processes already running: %s",
+			aurora.Bold(strings.Join(runningPriorities, ", "))))
+	case len(runningPriorities) > 0 && l.started:
+		// Do this if there are any priorities started and we need to stop all running swap processes.
+		logInfo(fmt.Sprintf("%s %s", aurora.Yellow("start"), aurora.Bold(strings.Join(runningPriorities, ", "))))
+
+		l.stop()
+		l.stopSwaps(processes)
+	case len(runningPriorities) == 0 && !l.started:
+		// Do this when there are no priorities started and we need to start all the swap processes.
+		l.start()
+		l.startSwaps()
+	}
+
+	l.loopCount++
+}
+
+func (l *loop) listRunningPriorities(processes []ps.Process) []string {
 	// Make a map of the processes so the lookup is O(1).
 	processMap := map[string]bool{}
 	for _, process := range processes {
 		processMap[process.Executable()] = true
 	}
 
-	priorities := []string{}
+	prioritiesMap := map[string]bool{}
 	// Check if an executable has started that we want to take priority over
 	// our swap processes.
 	for _, priority := range l.priorities {
 		if processMap[priority.Name()] {
-			priorities = append(priorities, priority.Name())
+			prioritiesMap[priority.Name()] = true
 		}
 	}
 
-	// Remove any duplicates and sort the priorities.
-	priorities = removeDuplicates(priorities)
+	priorities := make([]string, 0, len(prioritiesMap))
+	for k := range prioritiesMap {
+		priorities = append(priorities, k)
+	}
+
 	sort.Strings(priorities)
 
-	switch {
-	case len(priorities) > 0 && !l.started && l.firstLoop:
-		// Do this if it is our first loop and priority processes are already running.
-		logWarn(fmt.Sprintf("not starting swap processes, priority processes already running: %s",
-			aurora.Bold(strings.Join(priorities, ", "))))
-	case len(priorities) > 0 && l.started:
-		// Do this if there are any priorities started and we need to stop all running swap processes.
-		l.started = false
+	return priorities
+}
 
-		if len(l.runningSwaps) > 0 {
-			logInfo(fmt.Sprintf("priority processes started: %s",
-				aurora.Bold(strings.Join(priorities, ", "))))
+func (l *loop) wait() {
+	time.Sleep(time.Duration(l.pollInterval) * time.Second)
+}
 
-			l.stopSwaps(processes)
-		}
-	case len(priorities) == 0 && !l.started:
-		// Do this when there are no priotiies started and we need to start all the swap processes.
-		l.started = true
+func (l *loop) stop() {
+	l.started = false
+}
 
-		logInfo("no priority processes running, starting all swap processes")
+func (l *loop) start() {
+	l.started = true
+}
 
-		l.startSwaps()
+func (l *loop) done() bool {
+	if l.limit < 1 {
+		return false
 	}
+
+	return l.limit == l.loopCount
 }
 
 func (l *loop) startSwaps() {
@@ -232,10 +256,12 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 // printStatus is a small helper function to either print "OK"
 // or "FAILED" in appropriate colors based on an error input.
 func printStatus(err error) {
+	w := ansicolor.NewAnsiColorWriter(os.Stdout)
+
 	if err == nil {
-		fmt.Printf(" %s\n", aurora.Green("OK"))
+		fmt.Fprintf(w, " %s\n", aurora.Green("OK"))
 	} else {
-		fmt.Printf(" %s\n", aurora.Red("FAILED"))
+		fmt.Fprintf(w, " %s\n", aurora.Red("FAILED"))
 	}
 }
 
@@ -257,23 +283,4 @@ func killChildProcesses(processes []ps.Process, pid int) error {
 	}
 
 	return nil
-}
-
-func removeDuplicates(elements []string) []string {
-	// Use map to record duplicates as we find them.
-	encountered := map[string]bool{}
-	result := []string{}
-
-	for v := range elements {
-		if encountered[elements[v]] {
-			// Do not add duplicate.
-		} else {
-			// Record this element as an encountered element.
-			encountered[elements[v]] = true
-			// Append to result slice.
-			result = append(result, elements[v])
-		}
-	}
-	// Return the new slice.
-	return result
 }

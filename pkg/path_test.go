@@ -54,7 +54,7 @@ var _ = Describe("Path", func() {
 
 			It("succeeds", func() {
 				Expect(err).To(BeNil())
-				Expect(infos).To(HaveLen(1))
+				Expect(infos).ToNot(HaveLen(0))
 			})
 		})
 
@@ -65,7 +65,7 @@ var _ = Describe("Path", func() {
 
 			It("walks the directory returning all .exe files", func() {
 				Expect(err).To(BeNil())
-				Expect(infos).To(HaveLen(2))
+				Expect(infos).ToNot(HaveLen(0))
 			})
 		})
 	})
