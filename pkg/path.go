@@ -7,6 +7,8 @@ import (
 	"regexp"
 )
 
+// ProcessList lists all .exe files in a
+// given directory.
 func ProcessList(path string) ([]os.FileInfo, error) {
 	files := []os.FileInfo{}
 
