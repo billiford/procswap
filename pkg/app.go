@@ -32,11 +32,6 @@ const (
 	flagSwapUsage           = "a process that will run when any priority executable is not running"
 )
 
-var (
-	version  string
-	revision string
-)
-
 // NewApp returns a urfave/cli app that runs the loops to
 // check for prioritized processes.
 func NewApp() *cli.App {
@@ -53,7 +48,7 @@ func NewApp() *cli.App {
 
 func authors() []*cli.Author {
 	return []*cli.Author{
-		&cli.Author{
+		{
 			Name: authorName,
 		},
 	}
