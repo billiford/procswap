@@ -5,6 +5,9 @@
 *.so
 *.dylib
 
+# Don't ignore the test folder, it has .exe files we use for testing.
+!pkg/test/**
+
 # Test binary, built with `go test -c`
 *.test
 
@@ -18,3 +21,4 @@ vendor/
 bin/
 scratch/
 /procswap
+*.coverprofile

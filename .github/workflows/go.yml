@@ -1,10 +1,10 @@
-me: Go
+name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
 
@@ -46,4 +46,4 @@ jobs:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.29
 
-          args: --enable wsl --timeout 180s
+          args: --skip-files .*_test.go --enable wsl --timeout 180s
