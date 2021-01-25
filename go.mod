@@ -13,7 +13,6 @@ require (
 	github.com/onsi/gomega v1.10.4
 	github.com/shiena/ansicolor v0.0.0-20200904210342-c7312218db18
 	github.com/stamblerre/gocode v1.0.0 // indirect
-	github.com/urfave/cli v1.22.5
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/mod v0.4.1 // indirect
 	golang.org/x/tools v0.0.0-20210115202250-e0d201561e39 // indirect
