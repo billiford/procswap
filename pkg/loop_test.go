@@ -1,19 +1,21 @@
 package procswap_test
 
 import (
+	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"time"
 
-	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
 	. "github.com/onsi/gomega/gbytes"
 
+	"github.com/billiford/go-ps"
+	gopsfakes "github.com/billiford/go-ps/go-psfakes"
 	. "github.com/billiford/procswap/pkg"
+	"github.com/billiford/procswap/pkg/pkgfakes"
 )
 
 var _ = Describe("Loop", func() {
@@ -24,6 +26,9 @@ var _ = Describe("Loop", func() {
 	)
 
 	var (
+		fakePs         *gopsfakes.FakePs
+		fakeProcess    *gopsfakes.FakeProcess
+		fakeSwap       *pkgfakes.FakeSwap
 		currentDir     string
 		prioritiesPath string
 		err            error
@@ -55,11 +60,18 @@ var _ = Describe("Loop", func() {
 
 		loop.WithPriorities(execs)
 
-		swaps := []string{
-			swapFilePath(currentDir),
+		fakeSwap = &pkgfakes.FakeSwap{}
+		fakeSwap.PathReturns(swapFilePath(currentDir))
+		swaps := []Swap{
+			fakeSwap,
 		}
 
 		loop.WithSwaps(swaps)
+
+		fakePs = &gopsfakes.FakePs{}
+		fakeProcess = &gopsfakes.FakeProcess{}
+		fakePs.ProcessesReturns([]ps.Process{fakeProcess}, nil)
+		loop.WithPs(fakePs)
 	})
 
 	JustBeforeEach(func() {
@@ -72,20 +84,24 @@ var _ = Describe("Loop", func() {
 	})
 
 	Describe("#Run", func() {
-		Context("when it is the first loop and a priority process is already running", func() {
-			var cmd *exec.Cmd
-
+		When("listing processes returns an error", func() {
 			BeforeEach(func() {
-				file := priorityFilePath(currentDir)
-				cmd = exec.Command(file)
-				err := cmd.Start()
-				Expect(err).To(BeNil())
+				fakePs.ProcessesReturns(nil, errors.New("error listing processes"))
 			})
 
-			AfterEach(func() {
-				err := cmd.Process.Kill()
-				Expect(err).To(BeNil())
-				cmd.Wait()
+			It("logs the error", func() {
+				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+				Eventually(buffer).Should(Say(fmtErrorLog + `error listing currently running processes: error listing processes`))
+			})
+		})
+
+		Context("when it is the first loop and a priority process is already running", func() {
+			BeforeEach(func() {
+				fakeProcess.ExecutableReturns(priorityFile())
+				processes := []ps.Process{
+					fakeProcess,
+				}
+				fakePs.ProcessesReturns(processes, nil)
 			})
 
 			It("lets us know that priorities are already running", func() {
@@ -95,51 +111,55 @@ var _ = Describe("Loop", func() {
 		})
 
 		Context("when the swaps have started and then a priority is started", func() {
-			var cmd *exec.Cmd
-
 			BeforeEach(func() {
 				loop.WithLimit(2)
 				loop.WithPollInterval(1)
 
 				go func() {
 					time.Sleep(500 * time.Millisecond)
-					// start a priority process
-					file := priorityFilePath(currentDir)
-					cmd = exec.Command(file)
-					err := cmd.Start()
-					Expect(err).To(BeNil())
+					fakeProcess.ExecutableReturns(priorityFile())
+					processes := []ps.Process{
+						fakeProcess,
+					}
+					fakePs.ProcessesReturns(processes, nil)
 				}()
 			})
 
-			AfterEach(func() {
-				err := cmd.Process.Kill()
-				Expect(err).To(BeNil())
-				cmd.Wait()
+			When("stopping a swap process fails", func() {
+				BeforeEach(func() {
+					fakeSwap.StopReturns(errors.New("error stopping swap"))
+				})
+
+				It("logs the error", func() {
+					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*FAILED.*`))
+					Eventually(buffer).Should(Say(fmtErrorLog + `error stopping swap`))
+				})
 			})
 
-			It("lets us know it is stopping the running processes", func() {
-				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
-				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
-				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
-				Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+			When("it succeeds", func() {
+				It("lets us know it is stopping the running processes", func() {
+					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+				})
 			})
 		})
 
 		Context("when there are no running priorities and swap processes have not been started", func() {
 			When("you pass in a swap file that doesn't exist", func() {
-				var swap, guid string
-
 				BeforeEach(func() {
-					guid = uuid.New().String()
-					swap = filepath.FromSlash(currentDir + "/" + guid)
-					loop.WithSwaps([]string{swap})
+					fakeSwap.StartReturns(errors.New("exec error"))
 				})
 
 				It("prints some errors", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables.*`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swap + `.*\.\.\. .*FAILED.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + fakeSwap.Path() + `.*\.\.\. .*FAILED.*`))
 					// The error will likely change cross platform, so don't test too much.
-					Eventually(buffer).Should(Say(fmtErrorLog + `error starting swap process ` + swap + ".*"))
+					Eventually(buffer).Should(Say(fmtErrorLog + `error starting swap process ` + fakeSwap.Path() + ": exec error"))
 				})
 			})
 

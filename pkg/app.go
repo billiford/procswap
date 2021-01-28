@@ -120,10 +120,15 @@ func run(c *cli.Context) error {
 		logFatal(err.Error())
 	}
 
-	loop.WithSwaps(sp)
+	swaps := []Swap{}
+	for _, swap := range sp {
+		swaps = append(swaps, NewSwap(swap))
+	}
 
-	swaps := strconv.Itoa(len(sp))
-	logInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swaps)))
+	loop.WithSwaps(swaps)
+
+	swapCount := strconv.Itoa(len(sp))
+	logInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swapCount)))
 
 	limit := c.Int(flagLimitName)
 	if limit > 0 {
