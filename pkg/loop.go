@@ -52,6 +52,7 @@ func NewLoop() Loop {
 		priorities:   []os.FileInfo{},
 		limit:        0,
 		loopCount:    0,
+		ps:           ps.New(),
 		pollInterval: defaultPollInterval,
 		runningSwaps: []Swap{},
 	}
@@ -104,17 +105,8 @@ func (l *loop) Run() {
 func (l *loop) run() {
 	defer l.incCount()
 
-	// This seems to be a fairly cheap call to check the running processes.
-	// It would be nice to just have a watch.
-	processes, err := l.ps.Processes()
-	if err != nil {
-		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
-
-		return
-	}
-
 	// List running priorities from the current processes running.
-	runningPriorities := l.listRunningPriorities(processes)
+	runningPriorities := l.listRunningPriorities()
 
 	switch {
 	case len(runningPriorities) > 0 && !l.started && l.loopCount == 0:
@@ -128,7 +120,7 @@ func (l *loop) run() {
 		// It might make sense to set swap scripts to either started or not inside their functions,
 		// but I think ths is more explicit.
 		l.stop()
-		l.stopSwaps(processes)
+		l.stopSwaps()
 	case len(runningPriorities) == 0 && !l.started:
 		// Do this when there are no priorities started and we need to start all the swap processes.
 		l.start()
@@ -143,7 +135,16 @@ func (l *loop) incCount() {
 // listRunningPriorities takes in a list of currently running
 // priorities and makes a list of any user-defined priorities that are
 // running.
-func (l *loop) listRunningPriorities(processes []ps.Process) []string {
+func (l *loop) listRunningPriorities() []string {
+	// This seems to be a fairly cheap call to check the running processes.
+	// It would be nice to just have a watch.
+	processes, err := l.ps.Processes()
+	if err != nil {
+		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
+
+		return nil
+	}
+
 	// Make a map of the processes so the lookup is O(1).
 	processMap := map[string]bool{}
 	for _, process := range processes {
@@ -215,7 +216,7 @@ func (l *loop) startSwaps() {
 //
 // We should really build a process ID tree here, but for now the killing of child
 // processes is pretty simple.
-func (l *loop) stopSwaps(processes []ps.Process) {
+func (l *loop) stopSwaps() {
 	// Store a list of pids that were unsuccessfully killed to add to the list
 	// of currently running swap processes.
 	pids := map[int]bool{}
@@ -223,7 +224,7 @@ func (l *loop) stopSwaps(processes []ps.Process) {
 	for _, swap := range l.runningSwaps {
 		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.Path())), false)
 
-		err := swap.Stop(processes)
+		err := swap.Kill()
 		if err != nil {
 			logFailed()
 			logError(err.Error())

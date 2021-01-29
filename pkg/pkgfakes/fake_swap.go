@@ -2,23 +2,21 @@
 package pkgfakes
 
 import (
-	"os/exec"
 	"sync"
 
-	ps "github.com/billiford/go-ps"
 	procswap "github.com/billiford/procswap/pkg"
 )
 
 type FakeSwap struct {
-	CmdStub        func() *exec.Cmd
-	cmdMutex       sync.RWMutex
-	cmdArgsForCall []struct {
+	KillStub        func() error
+	killMutex       sync.RWMutex
+	killArgsForCall []struct {
 	}
-	cmdReturns struct {
-		result1 *exec.Cmd
+	killReturns struct {
+		result1 error
 	}
-	cmdReturnsOnCall map[int]struct {
-		result1 *exec.Cmd
+	killReturnsOnCall map[int]struct {
+		result1 error
 	}
 	PIDStub        func() int
 	pIDMutex       sync.RWMutex
@@ -50,30 +48,19 @@ type FakeSwap struct {
 	startReturnsOnCall map[int]struct {
 		result1 error
 	}
-	StopStub        func([]ps.Process) error
-	stopMutex       sync.RWMutex
-	stopArgsForCall []struct {
-		arg1 []ps.Process
-	}
-	stopReturns struct {
-		result1 error
-	}
-	stopReturnsOnCall map[int]struct {
-		result1 error
-	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeSwap) Cmd() *exec.Cmd {
-	fake.cmdMutex.Lock()
-	ret, specificReturn := fake.cmdReturnsOnCall[len(fake.cmdArgsForCall)]
-	fake.cmdArgsForCall = append(fake.cmdArgsForCall, struct {
+func (fake *FakeSwap) Kill() error {
+	fake.killMutex.Lock()
+	ret, specificReturn := fake.killReturnsOnCall[len(fake.killArgsForCall)]
+	fake.killArgsForCall = append(fake.killArgsForCall, struct {
 	}{})
-	stub := fake.CmdStub
-	fakeReturns := fake.cmdReturns
-	fake.recordInvocation("Cmd", []interface{}{})
-	fake.cmdMutex.Unlock()
+	stub := fake.KillStub
+	fakeReturns := fake.killReturns
+	fake.recordInvocation("Kill", []interface{}{})
+	fake.killMutex.Unlock()
 	if stub != nil {
 		return stub()
 	}
@@ -83,38 +70,38 @@ func (fake *FakeSwap) Cmd() *exec.Cmd {
 	return fakeReturns.result1
 }
 
-func (fake *FakeSwap) CmdCallCount() int {
-	fake.cmdMutex.RLock()
-	defer fake.cmdMutex.RUnlock()
-	return len(fake.cmdArgsForCall)
+func (fake *FakeSwap) KillCallCount() int {
+	fake.killMutex.RLock()
+	defer fake.killMutex.RUnlock()
+	return len(fake.killArgsForCall)
 }
 
-func (fake *FakeSwap) CmdCalls(stub func() *exec.Cmd) {
-	fake.cmdMutex.Lock()
-	defer fake.cmdMutex.Unlock()
-	fake.CmdStub = stub
+func (fake *FakeSwap) KillCalls(stub func() error) {
+	fake.killMutex.Lock()
+	defer fake.killMutex.Unlock()
+	fake.KillStub = stub
 }
 
-func (fake *FakeSwap) CmdReturns(result1 *exec.Cmd) {
-	fake.cmdMutex.Lock()
-	defer fake.cmdMutex.Unlock()
-	fake.CmdStub = nil
-	fake.cmdReturns = struct {
-		result1 *exec.Cmd
+func (fake *FakeSwap) KillReturns(result1 error) {
+	fake.killMutex.Lock()
+	defer fake.killMutex.Unlock()
+	fake.KillStub = nil
+	fake.killReturns = struct {
+		result1 error
 	}{result1}
 }
 
-func (fake *FakeSwap) CmdReturnsOnCall(i int, result1 *exec.Cmd) {
-	fake.cmdMutex.Lock()
-	defer fake.cmdMutex.Unlock()
-	fake.CmdStub = nil
-	if fake.cmdReturnsOnCall == nil {
-		fake.cmdReturnsOnCall = make(map[int]struct {
-			result1 *exec.Cmd
+func (fake *FakeSwap) KillReturnsOnCall(i int, result1 error) {
+	fake.killMutex.Lock()
+	defer fake.killMutex.Unlock()
+	fake.KillStub = nil
+	if fake.killReturnsOnCall == nil {
+		fake.killReturnsOnCall = make(map[int]struct {
+			result1 error
 		})
 	}
-	fake.cmdReturnsOnCall[i] = struct {
-		result1 *exec.Cmd
+	fake.killReturnsOnCall[i] = struct {
+		result1 error
 	}{result1}
 }
 
@@ -277,85 +264,17 @@ func (fake *FakeSwap) StartReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeSwap) Stop(arg1 []ps.Process) error {
-	var arg1Copy []ps.Process
-	if arg1 != nil {
-		arg1Copy = make([]ps.Process, len(arg1))
-		copy(arg1Copy, arg1)
-	}
-	fake.stopMutex.Lock()
-	ret, specificReturn := fake.stopReturnsOnCall[len(fake.stopArgsForCall)]
-	fake.stopArgsForCall = append(fake.stopArgsForCall, struct {
-		arg1 []ps.Process
-	}{arg1Copy})
-	stub := fake.StopStub
-	fakeReturns := fake.stopReturns
-	fake.recordInvocation("Stop", []interface{}{arg1Copy})
-	fake.stopMutex.Unlock()
-	if stub != nil {
-		return stub(arg1)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeSwap) StopCallCount() int {
-	fake.stopMutex.RLock()
-	defer fake.stopMutex.RUnlock()
-	return len(fake.stopArgsForCall)
-}
-
-func (fake *FakeSwap) StopCalls(stub func([]ps.Process) error) {
-	fake.stopMutex.Lock()
-	defer fake.stopMutex.Unlock()
-	fake.StopStub = stub
-}
-
-func (fake *FakeSwap) StopArgsForCall(i int) []ps.Process {
-	fake.stopMutex.RLock()
-	defer fake.stopMutex.RUnlock()
-	argsForCall := fake.stopArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *FakeSwap) StopReturns(result1 error) {
-	fake.stopMutex.Lock()
-	defer fake.stopMutex.Unlock()
-	fake.StopStub = nil
-	fake.stopReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *FakeSwap) StopReturnsOnCall(i int, result1 error) {
-	fake.stopMutex.Lock()
-	defer fake.stopMutex.Unlock()
-	fake.StopStub = nil
-	if fake.stopReturnsOnCall == nil {
-		fake.stopReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.stopReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *FakeSwap) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.cmdMutex.RLock()
-	defer fake.cmdMutex.RUnlock()
+	fake.killMutex.RLock()
+	defer fake.killMutex.RUnlock()
 	fake.pIDMutex.RLock()
 	defer fake.pIDMutex.RUnlock()
 	fake.pathMutex.RLock()
 	defer fake.pathMutex.RUnlock()
 	fake.startMutex.RLock()
 	defer fake.startMutex.RUnlock()
-	fake.stopMutex.RLock()
-	defer fake.stopMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

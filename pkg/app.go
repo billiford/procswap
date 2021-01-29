@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	appName                 = "procwap"
+	appName                 = "procswap"
 	appUsage                = "run processes when any prioritized process is not running"
 	appUsageText            = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
 	authorName              = "billiford"
@@ -85,15 +85,55 @@ func flags() []cli.Flag {
 
 func run(c *cli.Context) error {
 	loop := NewLoop()
+
+	// Setup priority executables.
+	pe := listExecutables(c.StringSlice(flagPriorityName))
+	if len(pe) == 0 {
+		logWarn(fmt.Sprintf("%s found no priority executables - swap processes will run indefinitely", aurora.Cyan("setup")))
+	} else {
+		execs := strconv.Itoa(len(pe))
+		logInfo(fmt.Sprintf("%s found %s priority executables", aurora.Cyan("setup"), aurora.Bold(execs)))
+	}
+
+	loop.WithPriorities(pe)
+
+	// Setup swap scripts.
+	// -sp is a required flag, so there's no need to check if no swap processes
+	// were passed in.
+	sp := c.StringSlice(flagSwapName)
+	s := swaps(pe, sp)
+	loop.WithSwaps(s)
+
+	swapCount := strconv.Itoa(len(sp))
+	logInfo(fmt.Sprintf("%s registered %s swap processes", aurora.Cyan("setup"), aurora.Bold(swapCount)))
+
+	// Set limit for loop to run.
+	limit := c.Int(flagLimitName)
+	if limit > 0 {
+		loop.WithLimit(limit)
+	}
+
+	// Set the poll interval.
+	pollInterval := c.Int(flagPollIntervalName)
+	if pollInterval > 0 {
+		loop.WithPollInterval(pollInterval)
+	}
+
+	// This will run indefinitely unless limit is set to more than 0, or until the user exits.
+	loop.Run()
+
+	return nil
+}
+
+func listExecutables(paths []string) []os.FileInfo {
 	// These are our "priority executables".
 	pe := []os.FileInfo{}
 
 	// Priority and swap process setup.
-	paths := c.StringSlice(flagPriorityName)
 	for _, pd := range paths {
 		e, err := ProcessList(pd)
 		if err != nil {
-			logError(fmt.Sprintf("error searching %s for executables: %s", pd, err.Error()))
+			logError(fmt.Sprintf("%s error searching %s for executables: %s", aurora.Cyan("setup"), pd, err.Error()))
 
 			continue
 		}
@@ -101,19 +141,10 @@ func run(c *cli.Context) error {
 		pe = append(pe, e...)
 	}
 
-	if len(pe) == 0 {
-		logWarn("found no priority executables - swap processes will run indefinitely")
-	} else {
-		execs := strconv.Itoa(len(pe))
-		logInfo(fmt.Sprintf("found %s priority executables", aurora.Bold(execs)))
-	}
+	return pe
+}
 
-	loop.WithPriorities(pe)
-
-	// -sp is a required flag, so there's no need to check if no swap processes
-	// were passed in.
-	sp := c.StringSlice(flagSwapName)
-
+func swaps(pe []os.FileInfo, sp []string) []Swap {
 	// Make sure there's no intersection here, that would be a nightmare.
 	err := intersect(pe, sp)
 	if err != nil {
@@ -125,25 +156,7 @@ func run(c *cli.Context) error {
 		swaps = append(swaps, NewSwap(swap))
 	}
 
-	loop.WithSwaps(swaps)
-
-	swapCount := strconv.Itoa(len(sp))
-	logInfo(fmt.Sprintf("registered %s swap processes", aurora.Bold(swapCount)))
-
-	limit := c.Int(flagLimitName)
-	if limit > 0 {
-		loop.WithLimit(limit)
-	}
-
-	pollInterval := c.Int(flagPollIntervalName)
-	if pollInterval > 0 {
-		loop.WithPollInterval(pollInterval)
-	}
-
-	// This will run indefinitely, until the user exits.
-	loop.Run()
-
-	return nil
+	return swaps
 }
 
 func intersect(files []os.FileInfo, swaps []string) error {

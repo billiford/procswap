@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -61,7 +60,7 @@ var _ = Describe("Loop", func() {
 		loop.WithPriorities(execs)
 
 		fakeSwap = &pkgfakes.FakeSwap{}
-		fakeSwap.PathReturns(swapFilePath(currentDir))
+		fakeSwap.PathReturns(swapFilePath())
 		swaps := []Swap{
 			fakeSwap,
 		}
@@ -127,14 +126,14 @@ var _ = Describe("Loop", func() {
 
 			When("stopping a swap process fails", func() {
 				BeforeEach(func() {
-					fakeSwap.StopReturns(errors.New("error stopping swap"))
+					fakeSwap.KillReturns(errors.New("error stopping swap"))
 				})
 
 				It("logs the error", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*FAILED.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*FAILED.*`))
 					Eventually(buffer).Should(Say(fmtErrorLog + `error stopping swap`))
 				})
 			})
@@ -142,9 +141,9 @@ var _ = Describe("Loop", func() {
 			When("it succeeds", func() {
 				It("lets us know it is stopping the running processes", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 				})
 			})
 		})
@@ -166,42 +165,9 @@ var _ = Describe("Loop", func() {
 			When("it runs", func() {
 				It("runs", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath(currentDir) + `.*\.\.\. .*OK.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 				})
 			})
 		})
 	})
 })
-
-func swapFilePath(currentDir string) string {
-	var swap string
-	if runtime.GOOS == "windows" {
-		swap = filepath.FromSlash(currentDir + "/test/swaps/swap.exe")
-	} else {
-		swap = filepath.FromSlash(currentDir + "/test/swaps/swap")
-	}
-
-	return swap
-}
-
-func priorityFilePath(currentDir string) string {
-	var priority string
-	if runtime.GOOS == "windows" {
-		priority = filepath.FromSlash(currentDir + "/test/priorities/wait.exe")
-	} else {
-		priority = filepath.FromSlash(currentDir + "/test/priorities/wait_linux.exe")
-	}
-
-	return priority
-}
-
-func priorityFile() string {
-	var priority string
-	if runtime.GOOS == "windows" {
-		priority = "wait.exe"
-	} else {
-		priority = "wait_linux.exe"
-	}
-
-	return priority
-}

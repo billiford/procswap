@@ -1,6 +1,7 @@
 package procswap
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,68 +11,71 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Swap
 
-// Swap interface holds all fields available to a running swap command.
 type Swap interface {
-	Cmd() *exec.Cmd
 	Path() string
 	PID() int
-	Stop([]ps.Process) error
 	Start() error
+	Kill() error
 }
 
 type swap struct {
 	cmd  *exec.Cmd
 	path string
-	pid  int
+	ps   ps.Ps
 }
 
 func NewSwap(path string) Swap {
 	return &swap{
+		ps:   ps.New(),
 		path: path,
 	}
 }
 
-// PID returns the swaps process id.
-func (s *swap) PID() int {
-	return s.pid
-}
-
-// Path returns the full path of the swap script.
+// Path returns the path of the command.
 func (s *swap) Path() string {
 	return s.path
 }
 
-// Cmd returns the underlying exec command for the swap.
-func (s *swap) Cmd() *exec.Cmd {
-	return s.cmd
+// PID returns the process ID of the underlying command. If there is no
+// command it returns -1.
+func (s *swap) PID() int {
+	if s.cmd == nil {
+		return -1
+	}
+
+	return s.cmd.Process.Pid
 }
 
-// Start kicks off a given swap. It just executes the swap process as a command.
+// Start starts a given command.
 func (s *swap) Start() error {
 	cmd := exec.Command(s.path)
-
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-
 	s.cmd = cmd
-	s.pid = cmd.Process.Pid
 
-	return nil
+	return cmd.Start()
 }
 
-// Stop quits a "swap process" or script that is running.
-// We need to pass in the currently running processes in order to kill their child processes.
-func (s *swap) Stop(processes []ps.Process) error {
-	err := killChildProcesses(processes, s.pid)
-	if err != nil {
-		return fmt.Errorf("error killing child processes for %s: %w", s.cmd.Path, err)
+// Kill kills all direct child processes of the PID passed in,
+// then attempts to kill the PID itself.
+func (s *swap) Kill() error {
+	if s.cmd == nil {
+		return errors.New("no command to kill")
 	}
 
+	// Kill all child processes.
+	err := s.killChildProcesses()
+	if err != nil {
+		return fmt.Errorf("error killing child processes for %s: %w", s.path, err)
+	}
+
+	// Kill the process.
 	err = s.cmd.Process.Kill()
 	if err != nil {
-		return fmt.Errorf("error killing processes %s: %w", s.cmd.Path, err)
+		return fmt.Errorf("error killing processes %s: %w", s.path, err)
+	}
+
+	_, err = s.cmd.Process.Wait()
+	if err != nil {
+		return fmt.Errorf("error waiting on process to be killed %s: %w", s.path, err)
 	}
 
 	return nil
@@ -79,9 +83,15 @@ func (s *swap) Stop(processes []ps.Process) error {
 
 // killChildProcesses kills all processes that have a parent process ID
 // of the process ID passed in.
-func killChildProcesses(processes []ps.Process, pid int) error {
+func (s *swap) killChildProcesses() error {
+	// List all currently running processes.
+	processes, err := s.ps.Processes()
+	if err != nil {
+		return err
+	}
+
 	for _, process := range processes {
-		if process.PPid() == pid {
+		if process.PPid() == s.cmd.Process.Pid {
 			p, err := os.FindProcess(process.Pid())
 			if err != nil {
 				return fmt.Errorf("error finding process %s: %w", process.Executable(), err)
