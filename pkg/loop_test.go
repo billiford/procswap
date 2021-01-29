@@ -89,7 +89,7 @@ var _ = Describe("Loop", func() {
 			})
 
 			It("logs the error", func() {
-				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 				Eventually(buffer).Should(Say(fmtErrorLog + `error listing currently running processes: error listing processes`))
 			})
 		})
@@ -104,7 +104,7 @@ var _ = Describe("Loop", func() {
 			})
 
 			It("lets us know that priorities are already running", func() {
-				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 				Eventually(buffer).Should(Say(fmtWarnLog + `not starting swap processes, priority processes already running: .*`))
 			})
 		})
@@ -130,7 +130,7 @@ var _ = Describe("Loop", func() {
 				})
 
 				It("logs the error", func() {
-					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*FAILED.*`))
@@ -140,7 +140,7 @@ var _ = Describe("Loop", func() {
 
 			When("it succeeds", func() {
 				It("lets us know it is stopping the running processes", func() {
-					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
@@ -155,7 +155,7 @@ var _ = Describe("Loop", func() {
 				})
 
 				It("prints some errors", func() {
-					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + fakeSwap.Path() + `.*\.\.\. .*FAILED.*`))
 					// The error will likely change cross platform, so don't test too much.
 					Eventually(buffer).Should(Say(fmtErrorLog + `error starting swap process ` + fakeSwap.Path() + ": exec error"))
@@ -164,7 +164,7 @@ var _ = Describe("Loop", func() {
 
 			When("it runs", func() {
 				It("runs", func() {
-					Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + prioritiesPath + ` for executables`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 				})
 			})

@@ -62,7 +62,7 @@ var _ = Describe("App", func() {
 		When("it succeeds", func() {
 			It("succeeds", func() {
 				Expect(err).To(BeNil())
-				Eventually(buffer).Should(Say(fmtInfoLog + `searching ` + priorityFileDir() + ` for executables`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + priorityFileDir() + ` for executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* found .*\d.* priority executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* registered .*\d.* swap processes`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
