@@ -115,7 +115,7 @@ func (l *loop) run() {
 			aurora.Bold(strings.Join(runningPriorities, ", "))))
 	case len(runningPriorities) > 0 && l.started:
 		// Do this if there are any priorities started and we need to stop all running swap processes.
-		logInfo(fmt.Sprintf("%s %s", aurora.Yellow("start"), aurora.Bold(strings.Join(runningPriorities, ", "))))
+		logInfo(fmt.Sprintf("%s %s", aurora.Yellow("priority"), aurora.Bold(strings.Join(runningPriorities, ", "))))
 
 		// It might make sense to set swap scripts to either started or not inside their functions,
 		// but I think ths is more explicit.
@@ -229,12 +229,12 @@ func (l *loop) stopSwaps() {
 			logFailed()
 			logError(err.Error())
 
+			pids[swap.PID()] = true
+
 			continue
 		}
 
 		logOK()
-
-		pids[swap.PID()] = true
 	}
 
 	tmpRunningSwaps := []Swap{}
