@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+
+	"github.com/logrusorgru/aurora"
 )
 
 // ProcessList lists all .exe files in a
@@ -29,7 +31,7 @@ func ProcessList(path string) ([]os.FileInfo, error) {
 		return files, nil
 	}
 
-	logInfo(fmt.Sprintf("searching %s for executables", path))
+	logInfo(fmt.Sprintf("%s searching %s for executables", aurora.Cyan("setup"), path))
 
 	// Only list files that end in '.exe'.
 	libRegEx := regexp.MustCompile("^.*.exe$")

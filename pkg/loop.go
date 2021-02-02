@@ -3,24 +3,17 @@ package procswap
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/billiford/go-ps"
 	"github.com/logrusorgru/aurora"
-	"github.com/mitchellh/go-ps"
-	"github.com/shiena/ansicolor"
 )
 
 var (
 	defaultPollInterval = 10
 )
-
-type swap struct {
-	cmd *exec.Cmd
-	pid int
-}
 
 // Loop is the interface that runs indefinitely.
 type Loop interface {
@@ -28,29 +21,40 @@ type Loop interface {
 	WithLimit(int)
 	WithPollInterval(int)
 	WithPriorities([]os.FileInfo)
-	WithSwaps([]string)
+	WithPs(ps.Ps)
+	WithSwaps([]Swap)
 }
 
 // loop holds the priority executables and swap processes defined at startup.
 type loop struct {
-	swaps        []string
-	priorities   []os.FileInfo
-	limit        int
+	// limit is the limit the loop (polling windows ps) will run; less than 1 is infinite times.
+	limit int
+	// internal storage of how many times we've looped.
+	loopCount int
+	// poll interval sets how much time in seconds we wait before polling the windows processes.
 	pollInterval int
-	loopCount    int
-	started      bool
-	runningSwaps []swap
+	// list of priorities defined at startup.
+	priorities []os.FileInfo
+	// ps is the interface for listing processes
+	ps ps.Ps
+	// if the swap scripts have been started or not.
+	started bool
+	// list of paths to swap scripts.
+	swaps []Swap
+	// list of currently running swaps.
+	runningSwaps []Swap
 }
 
 // NewLoop returns a new Loop.
 func NewLoop() Loop {
 	return &loop{
-		swaps:        []string{},
+		swaps:        []Swap{},
 		priorities:   []os.FileInfo{},
 		limit:        0,
 		loopCount:    0,
+		ps:           ps.New(),
 		pollInterval: defaultPollInterval,
-		runningSwaps: []swap{},
+		runningSwaps: []Swap{},
 	}
 }
 
@@ -69,8 +73,13 @@ func (l *loop) WithPriorities(priorities []os.FileInfo) {
 	l.priorities = priorities
 }
 
+// WithPs sets the package that will list windows processes.
+func (l *loop) WithPs(ps ps.Ps) {
+	l.ps = ps
+}
+
 // WithSwaps sets the swap scripts/executables for the loop.
-func (l *loop) WithSwaps(swaps []string) {
+func (l *loop) WithSwaps(swaps []Swap) {
 	l.swaps = swaps
 }
 
@@ -85,26 +94,19 @@ func (l *loop) Run() {
 			break
 		}
 
-		l.loop()
+		l.run()
 		l.wait()
 	}
 }
 
-// loop runs the main loop. Swap running processes for priority executables or
+// run runs the main loop. Swap running processes for priority executables or
 // start the swap processes if no priority process is running and they have not
 // already been started.
-func (l *loop) loop() {
-	// This seems to be a fairly cheap call to check the running processes.
-	// It would be nice to just have a watch.
-	processes, err := ps.Processes()
-	if err != nil {
-		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
-
-		return
-	}
+func (l *loop) run() {
+	defer l.incCount()
 
 	// List running priorities from the current processes running.
-	runningPriorities := l.listRunningPriorities(processes)
+	runningPriorities := l.listRunningPriorities()
 
 	switch {
 	case len(runningPriorities) > 0 && !l.started && l.loopCount == 0:
@@ -113,20 +115,36 @@ func (l *loop) loop() {
 			aurora.Bold(strings.Join(runningPriorities, ", "))))
 	case len(runningPriorities) > 0 && l.started:
 		// Do this if there are any priorities started and we need to stop all running swap processes.
-		logInfo(fmt.Sprintf("%s %s", aurora.Yellow("start"), aurora.Bold(strings.Join(runningPriorities, ", "))))
+		logInfo(fmt.Sprintf("%s %s", aurora.Yellow("priority"), aurora.Bold(strings.Join(runningPriorities, ", "))))
 
+		// It might make sense to set swap scripts to either started or not inside their functions,
+		// but I think ths is more explicit.
 		l.stop()
-		l.stopSwaps(processes)
+		l.stopSwaps()
 	case len(runningPriorities) == 0 && !l.started:
 		// Do this when there are no priorities started and we need to start all the swap processes.
 		l.start()
 		l.startSwaps()
 	}
+}
 
+func (l *loop) incCount() {
 	l.loopCount++
 }
 
-func (l *loop) listRunningPriorities(processes []ps.Process) []string {
+// listRunningPriorities takes in a list of currently running
+// priorities and makes a list of any user-defined priorities that are
+// running.
+func (l *loop) listRunningPriorities() []string {
+	// This seems to be a fairly cheap call to check the running processes.
+	// It would be nice to just have a watch.
+	processes, err := l.ps.Processes()
+	if err != nil {
+		logError(fmt.Sprintf("error listing currently running processes: %s", err.Error()))
+
+		return nil
+	}
+
 	// Make a map of the processes so the lookup is O(1).
 	processMap := map[string]bool{}
 	for _, process := range processes {
@@ -142,6 +160,7 @@ func (l *loop) listRunningPriorities(processes []ps.Process) []string {
 		}
 	}
 
+	// Generate a slice of currently running priorities.
 	priorities := make([]string, 0, len(prioritiesMap))
 	for k := range prioritiesMap {
 		priorities = append(priorities, k)
@@ -175,23 +194,18 @@ func (l *loop) done() bool {
 func (l *loop) startSwaps() {
 	for _, s := range l.swaps {
 		// Print this without a newline at the end since we'll be printing the status later.
-		logInfo(fmt.Sprintf("%s %s...", aurora.Green("start"), aurora.Bold(s)), false)
-		cmd := exec.Command(s)
+		logInfo(fmt.Sprintf("%s %s...", aurora.Green("start"), aurora.Bold(s.Path())), false)
 
-		err := cmd.Start()
+		err := s.Start()
 		if err != nil {
-			printStatus(err)
-			logError(fmt.Sprintf("error starting swap process %s: %s", s, err.Error()))
+			logFailed()
+			logError(fmt.Sprintf("error starting swap process %s: %s", s.Path(), err.Error()))
 
 			continue
 		}
 
-		printStatus(err)
+		logOK()
 
-		s := swap{
-			cmd: cmd,
-			pid: cmd.Process.Pid,
-		}
 		l.runningSwaps = append(l.runningSwaps, s)
 	}
 }
@@ -202,85 +216,37 @@ func (l *loop) startSwaps() {
 //
 // We should really build a process ID tree here, but for now the killing of child
 // processes is pretty simple.
-func (l *loop) stopSwaps(processes []ps.Process) {
-	if len(l.runningSwaps) == 0 {
-		logWarn("no swap processes to stop")
-
-		return
-	}
-
+func (l *loop) stopSwaps() {
 	// Store a list of pids that were unsuccessfully killed to add to the list
 	// of currently running swap processes.
 	pids := map[int]bool{}
 
 	for _, swap := range l.runningSwaps {
-		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.cmd.Path)), false)
+		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.Path())), false)
 
-		err := killChildProcesses(processes, swap.pid)
+		err := swap.Kill()
 		if err != nil {
-			printStatus(err)
-			logError(fmt.Sprintf("error killing child processes for %s: %s", swap.cmd.Path, err.Error()))
+			logFailed()
+			logError(err.Error())
 
-			pids[swap.pid] = true
+			pids[swap.PID()] = true
 
 			continue
 		}
 
-		err = swap.cmd.Process.Kill()
-		if err != nil {
-			printStatus(err)
-			logError(fmt.Sprintf("error killing processes %s: %s", swap.cmd.Path, err.Error()))
-
-			pids[swap.pid] = true
-
-			continue
-		}
-
-		printStatus(err)
+		logOK()
 	}
 
-	tmpRunningSwaps := []swap{}
+	tmpRunningSwaps := []Swap{}
 
 	// If any swap processes failed to stop, add them here.
 	// TODO we need to figure out a way to come back and retry killing these processes.
 	for _, swap := range l.runningSwaps {
-		if pids[swap.pid] {
+		if pids[swap.PID()] {
 			tmpRunningSwaps = append(tmpRunningSwaps, swap)
 		}
 	}
 
 	// Since we're shutting down everything, reset the currently running commands.
 	l.runningSwaps = tmpRunningSwaps
-}
-
-// printStatus is a small helper function to either print "OK"
-// or "FAILED" in appropriate colors based on an error input.
-func printStatus(err error) {
-	w := ansicolor.NewAnsiColorWriter(os.Stdout)
-
-	if err == nil {
-		fmt.Fprintf(w, " %s\n", aurora.Green("OK"))
-	} else {
-		fmt.Fprintf(w, " %s\n", aurora.Red("FAILED"))
-	}
-}
-
-// killChildProcesses kills all processes that have a parent process ID
-// of the process ID passed in.
-func killChildProcesses(processes []ps.Process, pid int) error {
-	for _, process := range processes {
-		if process.PPid() == pid {
-			p, err := os.FindProcess(process.Pid())
-			if err != nil {
-				return fmt.Errorf("error finding process %s: %w", process.Executable(), err)
-			}
-
-			err = p.Kill()
-			if err != nil {
-				return fmt.Errorf("error killing process %s: %w", process.Executable(), err)
-			}
-		}
-	}
-
-	return nil
 }

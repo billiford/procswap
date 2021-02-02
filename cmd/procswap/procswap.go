@@ -1,12 +1,29 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
 	procswap "github.com/billiford/procswap/pkg"
 	"github.com/mattn/go-colorable"
 	"github.com/urfave/cli/v2"
+)
+
+const (
+	banner = `
+      ___         ___           ___           ___           ___           ___           ___           ___
+     /  /\       /  /\         /  /\         /  /\         /  /\         /__/\         /  /\         /  /\
+    /  /::\     /  /::\       /  /::\       /  /:/        /  /:/_       _\_ \:\       /  /::\       /  /::\
+   /  /:/\:\   /  /:/\:\     /  /:/\:\     /  /:/        /  /:/ /\     /__/\ \:\     /  /:/\:\     /  /:/\:\
+  /  /:/~/:/  /  /:/~/:/    /  /:/  \:\   /  /:/  ___   /  /:/ /::\   _\_ \:\ \:\   /  /:/~/::\   /  /:/~/:/
+ /__/:/ /:/  /__/:/ /:/___ /__/:/ \__\:\ /__/:/  /  /\ /__/:/ /:/\:\ /__/\ \:\ \:\ /__/:/ /:/\:\ /__/:/ /:/
+ \  \:\/:/   \  \:\/:::::/ \  \:\ /  /:/ \  \:\ /  /:/ \  \:\/:/~/:/ \  \:\ \:\/:/ \  \:\/:/__\/ \  \:\/:/
+  \  \::/     \  \::/~~~~   \  \:\  /:/   \  \:\  /:/   \  \::/ /:/   \  \:\ \::/   \  \::/       \  \::/
+   \  \:\      \  \:\        \  \:\/:/     \  \:\/:/     \__\/ /:/     \  \:\/:/     \  \:\        \  \:\
+    \  \:\      \  \:\        \  \::/       \  \::/        /__/:/       \  \::/       \  \:\        \  \:\
+     \__\/       \__\/         \__\/         \__\/         \__\/         \__\/         \__\/         \__\/
+`
 )
 
 var (
@@ -26,6 +43,8 @@ func main() {
 	app := procswap.NewApp()
 	app.Version = version
 
+	printBanner()
+
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
@@ -34,4 +53,8 @@ func main() {
 
 func versionPrinter(c *cli.Context) {
 	log.Printf("version=%s revision=%s", c.App.Version, revision)
+}
+
+func printBanner() {
+	fmt.Println(banner)
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/logrusorgru/aurora"
 	"github.com/shiena/ansicolor"
 )
 
@@ -87,4 +88,16 @@ func logError(message string, newline ...bool) {
 func logFatal(message string, newline ...bool) {
 	logWithLevel(logLevelFatal, message, newline...)
 	os.Exit(1)
+}
+
+// logOK logs "OK" in green followed by a newline.
+func logOK() {
+	w := ansicolor.NewAnsiColorWriter(os.Stdout)
+	fmt.Fprintf(w, " %s\n", aurora.Green("OK"))
+}
+
+// logFailed logs "FAILED" in red followed by a newline.
+func logFailed() {
+	w := ansicolor.NewAnsiColorWriter(os.Stdout)
+	fmt.Fprintf(w, " %s\n", aurora.Red("FAILED"))
 }
