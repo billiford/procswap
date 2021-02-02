@@ -132,7 +132,7 @@ var _ = Describe("Loop", func() {
 				It("logs the error", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*priority.* .*` + priorityFile() + `.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*FAILED.*`))
 					Eventually(buffer).Should(Say(fmtErrorLog + `error stopping swap`))
 				})
@@ -142,7 +142,7 @@ var _ = Describe("Loop", func() {
 				It("lets us know it is stopping the running processes", func() {
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
-					Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + priorityFile() + `.*`))
+					Eventually(buffer).Should(Say(fmtInfoLog + `.*priority.* .*` + priorityFile() + `.*`))
 					Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 				})
 			})
