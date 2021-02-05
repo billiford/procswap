@@ -24,7 +24,7 @@ I store my steam games on drive `D:\` so I passed in the link to the common dire
 
 The output looks something like this:
 
-<img src="https://github.com/billiford/procswap/blob/media/procswap-v0.1.0-output.png" align="left">
+<img src="https://github.com/billiford/procswap/blob/media/procswap-v0.3.0.png" align="left">
 
 As you can see, the first thing that happened is it scanned my games folder, found all the executables and since none were running started up my `.bat` files to start mining! When I opened Hades, it logged that this priority process started and stopped all my scripts. When I quit playing Hades it started them up again. Efficient mining!
 
