@@ -3,6 +3,7 @@ package procswap
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ type Loop interface {
 	WithLimit(int)
 	WithPollInterval(int)
 	WithPriorities([]os.FileInfo)
+	WithPriorityScript(string)
 	WithPs(ps.Ps)
 	WithSwaps([]Swap)
 }
@@ -35,6 +37,8 @@ type loop struct {
 	pollInterval int
 	// list of priorities defined at startup.
 	priorities []os.FileInfo
+	// a script that will run when any priority starts
+	priorityScript string
 	// ps is the interface for listing processes
 	ps ps.Ps
 	// if the swap scripts have been started or not.
@@ -71,6 +75,11 @@ func (l *loop) WithPollInterval(pollInterval int) {
 // WithPriorities sets the priority processes for the loop.
 func (l *loop) WithPriorities(priorities []os.FileInfo) {
 	l.priorities = priorities
+}
+
+// WithPriorityScript sets the priority script for the loop.
+func (l *loop) WithPriorityScript(priorityScript string) {
+	l.priorityScript = priorityScript
 }
 
 // WithPs sets the package that will list windows processes.
@@ -121,6 +130,7 @@ func (l *loop) run() {
 		// but I think ths is more explicit.
 		l.stop()
 		l.stopSwaps()
+		l.startPriorityScript()
 	case len(runningPriorities) == 0 && !l.started:
 		// Do this when there are no priorities started and we need to start all the swap processes.
 		l.start()
@@ -249,4 +259,26 @@ func (l *loop) stopSwaps() {
 
 	// Since we're shutting down everything, reset the currently running commands.
 	l.runningSwaps = tmpRunningSwaps
+}
+
+// startPriorityScript starts a given priority script. It waits for the command to complete, which
+// is different than swaps which are started then stopped if a priority process begins running.
+func (l *loop) startPriorityScript() {
+	// If no priority script is set, just return.
+	if l.priorityScript == "" {
+		return
+	}
+
+	logInfo(fmt.Sprintf("%s %s...", aurora.Magenta("priority script"), aurora.Bold(l.priorityScript)), false)
+
+	cmd := exec.Command(l.priorityScript)
+
+	err := cmd.Run()
+	if err != nil {
+		// If there is an error running the priority script, just log it and let the loop continue.
+		logFailed()
+		logError(err.Error())
+	} else {
+		logOK()
+	}
 }

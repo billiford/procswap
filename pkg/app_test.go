@@ -41,7 +41,7 @@ var _ = Describe("App", func() {
 	Describe("#Run", func() {
 		BeforeEach(func() {
 			app = NewApp()
-			args = []string{procswapFilename(), "-p", priorityFileDir(), "-s", swapFilePath(), "--limit", "1", "--poll-interval", "1"}
+			args = []string{procswapFilename(), "-p", priorityFileDir(), "-s", swapFilePath(), "-ps", priorityScriptPath(), "--limit", "1", "--poll-interval", "1"}
 
 			// Output checks.
 			rescue = os.Stdout
@@ -65,6 +65,7 @@ var _ = Describe("App", func() {
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + priorityFileDir() + ` for executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* found .*\d.* priority executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* registered .*\d.* swap processes`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* registered priority script .*` + priorityScriptPath() + `.*`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
 			})
 		})

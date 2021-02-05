@@ -12,24 +12,27 @@ import (
 )
 
 const (
-	appName                 = "procswap"
-	appUsage                = "run processes when any prioritized process is not running"
-	appUsageText            = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
-	authorName              = "billiford"
-	flagLimitAliases        = "l"
-	flagLimitName           = "limit"
-	flagLimitUsage          = "a limit to a number of times the loop runs (0 = infinite)"
-	flagLimitValue          = 0
-	flagPollIntervalAliases = "pi"
-	flagPollIntervalName    = "poll-interval"
-	flagPollIntervalUsage   = "time in seconds to wait to poll for running processes"
-	flagPollIntervalValue   = 10
-	flagPriorityAliases     = "p"
-	flagPriorityName        = "priority"
-	flagPriorityUsage       = "a path to a file or directory to scan for executables"
-	flagSwapAliases         = "s"
-	flagSwapName            = "swap"
-	flagSwapUsage           = "a process that will run when any priority executable is not running"
+	appName                   = "procswap"
+	appUsage                  = "run processes when any prioritized process is not running"
+	appUsageText              = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
+	authorName                = "billiford"
+	flagLimitAliases          = "l"
+	flagLimitName             = "limit"
+	flagLimitUsage            = "a limit to a number of times the loop runs (0 = infinite)"
+	flagLimitValue            = 0
+	flagPollIntervalAliases   = "pi"
+	flagPollIntervalName      = "poll-interval"
+	flagPollIntervalUsage     = "time in seconds to wait to poll for running processes"
+	flagPollIntervalValue     = 10
+	flagPriorityAliases       = "p"
+	flagPriorityName          = "priority"
+	flagPriorityUsage         = "a path to a file or directory to scan for executables"
+	flagPriorityScriptAliases = "ps"
+	flagPriorityScriptName    = "priority-script"
+	flagPriorityScriptUsage   = "a path to a script that will run once when any priority starts"
+	flagSwapAliases           = "s"
+	flagSwapName              = "swap"
+	flagSwapUsage             = "a process that will run when any priority executable is not running"
 )
 
 // NewApp returns a urfave/cli app that runs the loops to
@@ -61,6 +64,11 @@ func flags() []cli.Flag {
 			Name:     flagPriorityName,
 			Usage:    flagPriorityUsage,
 			Required: true,
+		},
+		&cli.StringFlag{
+			Aliases: strings.Split(flagPriorityScriptAliases, ","),
+			Name:    flagPriorityScriptName,
+			Usage:   flagPriorityScriptUsage,
 		},
 		&cli.StringSliceFlag{
 			Aliases:  strings.Split(flagSwapAliases, ","),
@@ -106,6 +114,14 @@ func run(c *cli.Context) error {
 
 	swapCount := strconv.Itoa(len(sp))
 	logInfo(fmt.Sprintf("%s registered %s swap processes", aurora.Cyan("setup"), aurora.Bold(swapCount)))
+
+	// Setup priority script.
+	// This will run once any priority starts. We wait for completion of the script.
+	ps := c.String(flagPriorityScriptName)
+	if ps != "" {
+		loop.WithPriorityScript(ps)
+		logInfo(fmt.Sprintf("%s registered priority script %s", aurora.Cyan("setup"), aurora.Bold(ps)))
+	}
 
 	// Set limit for loop to run.
 	limit := c.Int(flagLimitName)

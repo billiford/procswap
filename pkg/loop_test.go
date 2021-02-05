@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -28,7 +29,6 @@ var _ = Describe("Loop", func() {
 		fakePs         *gopsfakes.FakePs
 		fakeProcess    *gopsfakes.FakeProcess
 		fakeSwap       *pkgfakes.FakeSwap
-		currentDir     string
 		prioritiesPath string
 		err            error
 		loop           Loop
@@ -50,9 +50,8 @@ var _ = Describe("Loop", func() {
 		buffer = BufferReader(r)
 
 		// Setup priority executables.
-		currentDir, err = os.Getwd()
 		Expect(err).To(BeNil())
-		prioritiesPath = filepath.FromSlash(currentDir + "/test/priorities")
+		prioritiesPath = filepath.FromSlash(currentDir() + "/test/priorities")
 
 		execs, err := ProcessList(prioritiesPath)
 		Expect(err).To(BeNil())
@@ -122,6 +121,42 @@ var _ = Describe("Loop", func() {
 					}
 					fakePs.ProcessesReturns(processes, nil)
 				}()
+			})
+
+			Context("when there is a priority script set", func() {
+				var priorityScript string
+
+				BeforeEach(func() {
+					priorityScript = priorityScriptPath()
+					loop.WithPriorityScript(priorityScript)
+				})
+
+				When("the priority script fails to run", func() {
+					BeforeEach(func() {
+						// Just pass in a path that doesn't exist to generate a failure.
+						priorityScript = filepath.FromSlash(currentDir() + "/" + uuid.New().String())
+						loop.WithPriorityScript(priorityScript)
+					})
+
+					It("lets us know and logs the error", func() {
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*priority.* .*` + priorityFile() + `.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*priority script.* .*` + priorityScript + `.*\.\.\. .*FAILED.*`))
+						Eventually(buffer).Should(Say(fmtErrorLog + `.*` + priorityScript + `.*`))
+					})
+				})
+
+				When("it succeeds", func() {
+					It("lets us know the priority script has started successfully", func() {
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + prioritiesPath + ` for executables`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*start.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*priority.* .*` + priorityFile() + `.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*stop.* .*` + swapFilePath() + `.*\.\.\. .*OK.*`))
+						Eventually(buffer).Should(Say(fmtInfoLog + `.*priority script.* .*` + priorityScriptPath() + `.*\.\.\. .*OK.*`))
+					})
+				})
 			})
 
 			When("stopping a swap process fails", func() {

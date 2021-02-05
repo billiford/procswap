@@ -138,6 +138,18 @@ func priorityFilePath() string {
 	return priority
 }
 
+func priorityScriptPath() string {
+	var priorityScript string
+
+	if runtime.GOOS == "windows" {
+		priorityScript = filepath.FromSlash(currentDir() + "/test/scripts/priority-script.exe")
+	} else {
+		priorityScript = filepath.FromSlash(currentDir() + "/test/scripts/priority-script")
+	}
+
+	return priorityScript
+}
+
 func waitFilePath() string {
 	var wait string
 
