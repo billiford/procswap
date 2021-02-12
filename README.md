@@ -4,7 +4,7 @@
 
 Procswap is a simple application that allows you to prioritize processes on a Windows machine. This is great for mining when you want to mine all the time unless certain processes (looking at you Cyberpunk) are running.
 
-It works by allowing the user to pass in their mining scripts and scanning a given directory for all `.exe` files and marking these as priorities. It polls the processes running in windows to check if one of these `.exe` priorities has started (e.g. `Hades.exe` has launched), and then stops all passed in scripts. Whenever there are no priority processes running, like when you get tired of playing Cyberpunk and close it, it launches all passed in scripts - these scripts are paths to your `.bat` [files](https://2miners.com/blog/phoenixminer-step-by-step-guide-for-beginners/#PhoenixMiner_Setup) that start your miners.
+It works by allowing the user to pass in their mining scripts and scanning a given directory for all `.exe` files and marking these as priorities. It polls the processes running in Windows to check if one of these `.exe` priorities has started (e.g. `Hades.exe` has launched), and then stops all passed in scripts. Whenever there are no priority processes running, like when you get tired of playing Cyberpunk and close it, it launches all passed in scripts - these scripts are paths to your `.bat` [files](https://2miners.com/blog/phoenixminer-step-by-step-guide-for-beginners/#PhoenixMiner_Setup) that start your miners.
 
 ### Getting Started
 
