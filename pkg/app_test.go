@@ -41,7 +41,14 @@ var _ = Describe("App", func() {
 	Describe("#Run", func() {
 		BeforeEach(func() {
 			app = NewApp()
-			args = []string{procswapFilename(), "-p", priorityFileDir(), "-s", swapFilePath(), "-ps", priorityScriptPath(), "--limit", "1", "--poll-interval", "1"}
+			args = []string{procswapFilename(),
+				"-p", priorityFileDir(),
+				"-s", swapFilePath(),
+				"-ps", priorityScriptPath(),
+				"--limit", "1",
+				"--poll-interval", "1",
+				"--ignore", "ignore_me.exe",
+			}
 
 			// Output checks.
 			rescue = os.Stdout
@@ -63,6 +70,7 @@ var _ = Describe("App", func() {
 			It("succeeds", func() {
 				Expect(err).To(BeNil())
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* searching ` + priorityFileDir() + ` for executables`))
+				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* ignoring priority .*ignore_me.exe.*`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* found .*\d.* priority executables`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* registered .*\d.* swap processes`))
 				Eventually(buffer).Should(Say(fmtInfoLog + `.*setup.* registered priority script .*` + priorityScriptPath() + `.*`))

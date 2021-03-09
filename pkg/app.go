@@ -16,6 +16,9 @@ const (
 	appUsage                  = "run processes when any prioritized process is not running"
 	appUsageText              = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
 	authorName                = "billiford"
+	flagIgnoreAliases         = "i"
+	flagIgnoreName            = "ignore"
+	flagIgnoreUsage           = "ignore a priority (case insensitive)"
 	flagLimitAliases          = "l"
 	flagLimitName             = "limit"
 	flagLimitUsage            = "a limit to a number of times the loop runs (0 = infinite)"
@@ -60,6 +63,11 @@ func authors() []*cli.Author {
 func flags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringSliceFlag{
+			Aliases: strings.Split(flagIgnoreAliases, ","),
+			Name:    flagIgnoreName,
+			Usage:   flagIgnoreUsage,
+		},
+		&cli.StringSliceFlag{
 			Aliases:  strings.Split(flagPriorityAliases, ","),
 			Name:     flagPriorityName,
 			Usage:    flagPriorityUsage,
@@ -95,7 +103,7 @@ func run(c *cli.Context) error {
 	loop := NewLoop()
 
 	// Setup priority executables.
-	pe := listExecutables(c.StringSlice(flagPriorityName))
+	pe := listExecutables(c.StringSlice(flagPriorityName), c.StringSlice(flagIgnoreName))
 	if len(pe) == 0 {
 		logWarn(fmt.Sprintf("%s found no priority executables - swap processes will run indefinitely", aurora.Cyan("setup")))
 	} else {
@@ -141,13 +149,13 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func listExecutables(paths []string) []os.FileInfo {
+func listExecutables(paths, ignored []string) []os.FileInfo {
 	// These are our "priority executables".
 	pe := []os.FileInfo{}
 
 	// Priority and swap process setup.
 	for _, pd := range paths {
-		e, err := ProcessList(pd)
+		e, err := ProcessList(pd, ignored)
 		if err != nil {
 			logError(fmt.Sprintf("%s error searching %s for executables: %s", aurora.Cyan("setup"), pd, err.Error()))
 
