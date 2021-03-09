@@ -30,6 +30,7 @@ var _ = Describe("Loop", func() {
 		fakeProcess    *gopsfakes.FakeProcess
 		fakeSwap       *pkgfakes.FakeSwap
 		prioritiesPath string
+		ignored        []string
 		err            error
 		loop           Loop
 		buffer         *Buffer
@@ -53,7 +54,8 @@ var _ = Describe("Loop", func() {
 		Expect(err).To(BeNil())
 		prioritiesPath = filepath.FromSlash(currentDir() + "/test/priorities")
 
-		execs, err := ProcessList(prioritiesPath)
+		ignored = []string{}
+		execs, err := ProcessList(prioritiesPath, ignored)
 		Expect(err).To(BeNil())
 
 		loop.WithPriorities(execs)

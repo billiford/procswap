@@ -13,10 +13,11 @@ import (
 
 var _ = Describe("Path", func() {
 	var (
-		infos  []os.FileInfo
-		path   string
-		err    error
-		rescue *os.File
+		infos   []os.FileInfo
+		ignored []string
+		path    string
+		err     error
+		rescue  *os.File
 	)
 
 	BeforeEach(func() {
@@ -25,6 +26,7 @@ var _ = Describe("Path", func() {
 		Expect(err).To(BeNil())
 		rescue = os.Stdout
 		os.Stdout = os.NewFile(0, os.DevNull)
+		ignored = []string{}
 	})
 
 	AfterEach(func() {
@@ -32,7 +34,7 @@ var _ = Describe("Path", func() {
 	})
 
 	JustBeforeEach(func() {
-		infos, err = ProcessList(path)
+		infos, err = ProcessList(path, ignored)
 	})
 
 	Describe("#ProcessList", func() {

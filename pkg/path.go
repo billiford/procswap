@@ -5,13 +5,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/logrusorgru/aurora"
 )
 
-// ProcessList lists all .exe files in a
-// given directory.
-func ProcessList(path string) ([]os.FileInfo, error) {
+// ProcessList lists all .exe files in a given directory.
+func ProcessList(path string, ignored []string) ([]os.FileInfo, error) {
 	files := []os.FileInfo{}
 
 	// Check to make sure it exists first.
@@ -38,7 +38,11 @@ func ProcessList(path string) ([]os.FileInfo, error) {
 
 	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err == nil && libRegEx.MatchString(info.Name()) {
-			files = append(files, info)
+			if contains(ignored, info.Name()) {
+				logInfo(fmt.Sprintf("%s ignoring priority %s", aurora.Cyan("setup"), aurora.Bold(info.Name())))
+			} else {
+				files = append(files, info)
+			}
 		}
 
 		return nil
@@ -48,4 +52,15 @@ func ProcessList(path string) ([]os.FileInfo, error) {
 	}
 
 	return files, nil
+}
+
+// contains returns true if slice s contains element e, ignoring case.
+func contains(s []string, e string) bool {
+	for _, a := range s {
+		if strings.EqualFold(a, e) {
+			return true
+		}
+	}
+
+	return false
 }

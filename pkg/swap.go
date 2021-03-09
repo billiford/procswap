@@ -11,6 +11,7 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Swap
 
+// Swap holds functions to implement starting and stopping of batch files.
 type Swap interface {
 	Path() string
 	PID() int
@@ -24,6 +25,7 @@ type swap struct {
 	ps   ps.Ps
 }
 
+// NewSwap returns and implementation of Swap.
 func NewSwap(path string) Swap {
 	return &swap{
 		ps:   ps.New(),
