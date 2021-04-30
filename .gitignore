@@ -6,7 +6,7 @@
 *.dylib
 
 # Don't ignore the test folder, it has .exe files we use for testing.
-!pkg/test/**
+!internal/test/**
 
 # Test binary, built with `go test -c`
 *.test
