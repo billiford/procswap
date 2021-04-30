@@ -79,7 +79,7 @@ func NewLoop() Loop {
 	// Define the actions for the loop. Perhaps this should be defined
 	// in main and we should provide a `WithActions(...)` setter function.
 	actions := map[rune]action{
-		's': action{
+		's': {
 			Description: "switch console output of swap processes",
 			F:           loop.switchOutput,
 		},
