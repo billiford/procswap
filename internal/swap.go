@@ -1,6 +1,7 @@
 package procswap
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -17,12 +18,15 @@ type Swap interface {
 	PID() int
 	Start() error
 	Kill() error
+	Cmd() *exec.Cmd
+	ShowOutput(bool)
 }
 
 type swap struct {
-	cmd  *exec.Cmd
-	path string
-	ps   ps.Ps
+	cmd        *exec.Cmd
+	path       string
+	ps         ps.Ps
+	showOutput bool
 }
 
 // NewSwap returns and implementation of Swap.
@@ -31,6 +35,11 @@ func NewSwap(path string) Swap {
 		ps:   ps.New(),
 		path: path,
 	}
+}
+
+// CMD returns the underlying cmd.
+func (s *swap) Cmd() *exec.Cmd {
+	return s.cmd
 }
 
 // Path returns the path of the command.
@@ -52,7 +61,29 @@ func (s *swap) PID() int {
 func (s *swap) Start() error {
 	cmd := exec.Command(s.path)
 	s.cmd = cmd
-
+	// Get the command's stdout pipe so we can show the command's output
+	// if requested.
+	r, err := s.cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	// Set the command error to be it's stdout.
+	cmd.Stderr = cmd.Stdout
+	// Create a scanner which scans r in a line-by-line fashion.
+	scanner := bufio.NewScanner(r)
+	// Run a thread that is constantly reading the output of a swap until
+	// there is no more output :).
+	go func(s *swap) {
+		// Read line by line and process it.
+		for scanner.Scan() {
+			line := scanner.Text()
+			// Only show the output if the user has requested it.
+			if s.showOutput {
+				fmt.Println(line)
+			}
+		}
+	}(s)
+	// Start the command.
 	return cmd.Start()
 }
 
@@ -107,4 +138,9 @@ func (s *swap) killChildProcesses() error {
 	}
 
 	return nil
+}
+
+// ShowOutput sets the showOutput boolean for this swap.
+func (s *swap) ShowOutput(showOutput bool) {
+	s.showOutput = showOutput
 }

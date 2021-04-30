@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	. "github.com/onsi/ginkgo"
 
-	. "github.com/billiford/procswap/pkg"
+	. "github.com/billiford/procswap/internal"
 	. "github.com/onsi/gomega"
 )
 

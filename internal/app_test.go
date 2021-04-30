@@ -10,14 +10,14 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	. "github.com/billiford/procswap/pkg"
+	. "github.com/billiford/procswap/internal"
 )
 
 var _ = Describe("App", func() {
 	const (
-		fmtInfoLog  = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| `
-		fmtWarnLog  = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| `
-		fmtErrorLog = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| `
+		fmtInfoLog  = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| `
+		fmtWarnLog  = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| `
+		fmtErrorLog = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| `
 	)
 
 	var (
@@ -48,6 +48,7 @@ var _ = Describe("App", func() {
 				"--limit", "1",
 				"--poll-interval", "1",
 				"--ignore", "ignore_me.exe",
+				"--disable-actions",
 			}
 
 			// Output checks.

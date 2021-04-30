@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
-	procswap "github.com/billiford/procswap/pkg"
+	procswap "github.com/billiford/procswap/internal"
 	"github.com/mattn/go-colorable"
 	"github.com/urfave/cli/v2"
 )
@@ -32,7 +31,7 @@ var (
 )
 
 func main() {
-	// Disable the log package from printing the date and time - we will handle that.
+	// Disable the log package from printing the date and time.
 	log.SetFlags(0)
 	// Need to set this since displaying color on a Windows console is tough.
 	log.SetOutput(colorable.NewColorableStdout())
@@ -56,5 +55,5 @@ func versionPrinter(c *cli.Context) {
 }
 
 func printBanner() {
-	fmt.Println(banner)
+	log.Println(banner)
 }

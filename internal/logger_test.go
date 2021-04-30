@@ -34,7 +34,7 @@ var _ = Describe("Logger", func() {
 		})
 
 		It("logs the message without a newline on the end", func() {
-			Eventually(buffer).Should(Say(`\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*DEBUG.*\| test$`))
+			Eventually(buffer).Should(Say(`\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*DEBUG.*\| test$`))
 		})
 	})
 
@@ -44,7 +44,7 @@ var _ = Describe("Logger", func() {
 		})
 
 		It("logs the message", func() {
-			Eventually(buffer).Should(Say(`\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*DEBUG.*\| test\n$`))
+			Eventually(buffer).Should(Say(`\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*DEBUG.*\| test\n$`))
 		})
 	})
 
@@ -54,7 +54,7 @@ var _ = Describe("Logger", func() {
 		})
 
 		It("logs the message", func() {
-			Eventually(buffer).Should(Say(`\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| test\n$`))
+			Eventually(buffer).Should(Say(`\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| test\n$`))
 		})
 	})
 
@@ -64,7 +64,7 @@ var _ = Describe("Logger", func() {
 		})
 
 		It("logs the message", func() {
-			Eventually(buffer).Should(Say(`\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| test\n$`))
+			Eventually(buffer).Should(Say(`\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| test\n$`))
 		})
 	})
 
@@ -74,7 +74,7 @@ var _ = Describe("Logger", func() {
 		})
 
 		It("logs the message", func() {
-			Eventually(buffer).Should(Say(`\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| test\n$`))
+			Eventually(buffer).Should(Say(`\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| test\n$`))
 		})
 	})
 })

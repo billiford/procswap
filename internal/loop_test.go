@@ -14,21 +14,21 @@ import (
 
 	"github.com/billiford/go-ps"
 	gopsfakes "github.com/billiford/go-ps/go-psfakes"
-	. "github.com/billiford/procswap/pkg"
-	"github.com/billiford/procswap/pkg/pkgfakes"
+	. "github.com/billiford/procswap/internal"
+	"github.com/billiford/procswap/internal/internalfakes"
 )
 
 var _ = Describe("Loop", func() {
 	const (
-		fmtInfoLog  = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| `
-		fmtWarnLog  = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| `
-		fmtErrorLog = `\[PROCSWAP\] \d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| `
+		fmtInfoLog  = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*INFO.*\| `
+		fmtWarnLog  = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*WARN.*\| `
+		fmtErrorLog = `\d{4}\/\d{2}\/\d{2} - \d{2}:\d{2}:\d{2} \|.*ERROR.*\| `
 	)
 
 	var (
 		fakePs         *gopsfakes.FakePs
 		fakeProcess    *gopsfakes.FakeProcess
-		fakeSwap       *pkgfakes.FakeSwap
+		fakeSwap       *internalfakes.FakeSwap
 		prioritiesPath string
 		ignored        []string
 		err            error
@@ -38,8 +38,6 @@ var _ = Describe("Loop", func() {
 	)
 
 	BeforeEach(func() {
-		// log.SetOutput(ioutil.Discard)
-
 		loop = NewLoop()
 		loop.WithLimit(1)
 		loop.WithPollInterval(0)
@@ -60,7 +58,7 @@ var _ = Describe("Loop", func() {
 
 		loop.WithPriorities(execs)
 
-		fakeSwap = &pkgfakes.FakeSwap{}
+		fakeSwap = &internalfakes.FakeSwap{}
 		fakeSwap.PathReturns(swapFilePath())
 		swaps := []Swap{
 			fakeSwap,
@@ -72,6 +70,7 @@ var _ = Describe("Loop", func() {
 		fakeProcess = &gopsfakes.FakeProcess{}
 		fakePs.ProcessesReturns([]ps.Process{fakeProcess}, nil)
 		loop.WithPs(fakePs)
+		loop.WithActionsEnabled(false)
 	})
 
 	JustBeforeEach(func() {

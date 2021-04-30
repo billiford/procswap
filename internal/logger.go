@@ -52,7 +52,7 @@ func logWithLevel(level logLevel, message string, newline ...bool) {
 		logColor = red
 	}
 
-	messageFormat := "[PROCSWAP] %v |%s %-5s %s| %s"
+	messageFormat := "%v |%s %-5s %s| %s"
 	if nl {
 		messageFormat += "\n"
 	}
