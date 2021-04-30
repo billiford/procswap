@@ -9,16 +9,21 @@ import (
 	"time"
 
 	"github.com/billiford/go-ps"
+	"github.com/eiannone/keyboard"
 	"github.com/logrusorgru/aurora"
 )
 
 var (
 	defaultPollInterval = 10
+	// CurrentSwapOutputIndex holds the index of the swap that is currently
+	// printing its output to std out.
+	currentSwapOutputIndex = -1
 )
 
 // Loop is the interface that runs indefinitely.
 type Loop interface {
 	Run()
+	WithActionsEnabled(bool)
 	WithLimit(int)
 	WithPollInterval(int)
 	WithPriorities([]os.FileInfo)
@@ -47,11 +52,22 @@ type loop struct {
 	swaps []Swap
 	// list of currently running swaps.
 	runningSwaps []Swap
+	// actionsEnabled defines if actions are enabled or not.
+	actionsEnabled bool
+	// actions is a map of key input to action.
+	actions map[rune]action
+}
+
+// action holds a key input description and func to call when pressed.
+type action struct {
+	Description string
+	F           func()
 }
 
 // NewLoop returns a new Loop.
 func NewLoop() Loop {
-	return &loop{
+	// Define the loop.
+	loop := &loop{
 		swaps:        []Swap{},
 		priorities:   []os.FileInfo{},
 		limit:        0,
@@ -60,6 +76,23 @@ func NewLoop() Loop {
 		pollInterval: defaultPollInterval,
 		runningSwaps: []Swap{},
 	}
+	// Define the actions for the loop. Perhaps this should be defined
+	// in main and we should provide a `WithActions(...)` setter function.
+	actions := map[rune]action{
+		's': action{
+			Description: "switch console output of swap processes",
+			F:           loop.switchOutput,
+		},
+	}
+	// Set the actions for the loop.
+	loop.actions = actions
+
+	return loop
+}
+
+// WithActionsEnabled enables or disables actions.
+func (l *loop) WithActionsEnabled(actionsEnabled bool) {
+	l.actionsEnabled = actionsEnabled
 }
 
 // WithLimit sets a limit on the loop.
@@ -92,12 +125,50 @@ func (l *loop) WithSwaps(swaps []Swap) {
 	l.swaps = swaps
 }
 
+// switchOutput switches the output of running swaps to std out.
+func (l *loop) switchOutput() {
+	// If there are no currently running swaps, just log this and return.
+	if len(l.runningSwaps) == 0 {
+		logInfo(fmt.Sprintf("%s no running swaps; ignoring", aurora.Magenta("action")))
+
+		return
+	}
+	// Hide all outputs.
+	for _, swap := range l.runningSwaps {
+		swap.ShowOutput(false)
+	}
+	// Increase the current swap output index.
+	currentSwapOutputIndex++
+	// If we've gone through all the swap outputs, just hide all outputs.
+	if len(l.runningSwaps) <= currentSwapOutputIndex {
+		logInfo(fmt.Sprintf("%s hiding all swap output", aurora.Magenta("action")))
+		// Reset index to procswap.
+		currentSwapOutputIndex = -1
+
+		return
+	}
+	// Get the output for the current swap output index.
+	swap := l.runningSwaps[currentSwapOutputIndex]
+	// Let the user know we're showing output for this particular swap.
+	logInfo(fmt.Sprintf("%s showing output for %s", aurora.Magenta("action"), aurora.Bold(swap.Path())))
+
+	swap.ShowOutput(true)
+}
+
 // Run runs the main loop. It gathers all "priority processes" and runs any swap processes
 // when any of these priority processes are not running.
 //
 // If any priority process starts, all swap processes are killed. When all priority processes
 // stop, all swap processes are kicked off again.
 func (l *loop) Run() {
+	if l.actionsEnabled {
+		// Inform the user of the inputs allowed.
+		l.printInputDescriptions()
+		// Listen for key input in the background.
+		go l.listenForKeyInput()
+	}
+
+	// Main loop.
 	for {
 		if l.done() {
 			break
@@ -105,6 +176,32 @@ func (l *loop) Run() {
 
 		l.run()
 		l.wait()
+	}
+}
+
+func (l *loop) printInputDescriptions() {
+	for key, action := range l.actions {
+		logInfo(fmt.Sprintf("%s press %s to %s", aurora.Magenta("action"), aurora.BgMagenta(string(key)), action.Description))
+	}
+}
+
+// listenForKeyInput listens for any key input forever.
+// If the input is mapped to some action, procwap will perform this action.
+func (l *loop) listenForKeyInput() {
+	// Loop forever.
+	for {
+		// Get key input, for example user has pressed 's'.
+		char, _, err := keyboard.GetSingleKey()
+		if err != nil {
+			// Show a warning that there was an error getting key input.
+			logWarn(fmt.Sprintf("error getting key input: %s", err.Error()))
+			// Continue so this is non-blocking.
+			continue
+		}
+		// If there's an actionable function mapped to this key, run it!
+		if _, ok := l.actions[char]; ok {
+			l.actions[char].F()
+		}
 	}
 }
 
@@ -227,10 +324,7 @@ func (l *loop) startSwaps() {
 // We should really build a process ID tree here, but for now the killing of child
 // processes is pretty simple.
 func (l *loop) stopSwaps() {
-	// Store a list of pids that were unsuccessfully killed to add to the list
-	// of currently running swap processes.
-	pids := map[int]bool{}
-
+	// Loop through and kill the running swaps.
 	for _, swap := range l.runningSwaps {
 		logInfo(fmt.Sprintf("%s %s...", aurora.Red("stop"), aurora.Bold(swap.Path())), false)
 
@@ -239,26 +333,13 @@ func (l *loop) stopSwaps() {
 			logFailed()
 			logError(err.Error())
 
-			pids[swap.PID()] = true
-
 			continue
 		}
 
 		logOK()
 	}
-
-	tmpRunningSwaps := []Swap{}
-
-	// If any swap processes failed to stop, add them here.
-	// TODO we need to figure out a way to come back and retry killing these processes.
-	for _, swap := range l.runningSwaps {
-		if pids[swap.PID()] {
-			tmpRunningSwaps = append(tmpRunningSwaps, swap)
-		}
-	}
-
 	// Since we're shutting down everything, reset the currently running commands.
-	l.runningSwaps = tmpRunningSwaps
+	l.runningSwaps = []Swap{}
 }
 
 // startPriorityScript starts a given priority script. It waits for the command to complete, which

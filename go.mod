@@ -4,6 +4,7 @@ go 1.15
 
 require (
 	github.com/billiford/go-ps v1.0.3
+	github.com/eiannone/keyboard v0.0.0-20200508000154-caf4b762e807
 	github.com/google/uuid v1.2.0
 	github.com/logrusorgru/aurora v2.0.3+incompatible
 	github.com/mattn/go-colorable v0.1.8

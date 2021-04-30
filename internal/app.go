@@ -16,6 +16,8 @@ const (
 	appUsage                  = "run processes when any prioritized process is not running"
 	appUsageText              = "procswap.exe -p <PATH_TO_DIR_FOR_PRIORITIES> -s <PATH_TO_EXECUTABLE>"
 	authorName                = "billiford"
+	flagDiableActionsName     = "disable-actions"
+	flagDiableActionsUsage    = "disable actions (keyboard inputs)"
 	flagIgnoreAliases         = "i"
 	flagIgnoreName            = "ignore"
 	flagIgnoreUsage           = "ignore a priority (case insensitive)"
@@ -62,6 +64,10 @@ func authors() []*cli.Author {
 
 func flags() []cli.Flag {
 	return []cli.Flag{
+		&cli.BoolFlag{
+			Name:  flagDiableActionsName,
+			Usage: flagDiableActionsUsage,
+		},
 		&cli.StringSliceFlag{
 			Aliases: strings.Split(flagIgnoreAliases, ","),
 			Name:    flagIgnoreName,
@@ -101,7 +107,6 @@ func flags() []cli.Flag {
 
 func run(c *cli.Context) error {
 	loop := NewLoop()
-
 	// Setup priority executables.
 	pe := listExecutables(c.StringSlice(flagPriorityName), c.StringSlice(flagIgnoreName))
 	if len(pe) == 0 {
@@ -114,7 +119,7 @@ func run(c *cli.Context) error {
 	loop.WithPriorities(pe)
 
 	// Setup swap scripts.
-	// -sp is a required flag, so there's no need to check if no swap processes
+	// -s is a required flag, so there's no need to check if no swap processes
 	// were passed in.
 	sp := c.StringSlice(flagSwapName)
 	s := swaps(pe, sp)
@@ -122,7 +127,6 @@ func run(c *cli.Context) error {
 
 	swapCount := strconv.Itoa(len(sp))
 	logInfo(fmt.Sprintf("%s registered %s swap processes", aurora.Cyan("setup"), aurora.Bold(swapCount)))
-
 	// Setup priority script.
 	// This will run once any priority starts. We wait for completion of the script.
 	ps := c.String(flagPriorityScriptName)
@@ -130,19 +134,20 @@ func run(c *cli.Context) error {
 		loop.WithPriorityScript(ps)
 		logInfo(fmt.Sprintf("%s registered priority script %s", aurora.Cyan("setup"), aurora.Bold(ps)))
 	}
-
 	// Set limit for loop to run.
 	limit := c.Int(flagLimitName)
 	if limit > 0 {
 		loop.WithLimit(limit)
 	}
-
 	// Set the poll interval.
 	pollInterval := c.Int(flagPollIntervalName)
 	if pollInterval > 0 {
 		loop.WithPollInterval(pollInterval)
 	}
-
+	// By default, enable all actions (keyboard inputs).
+	if !c.Bool(flagDiableActionsName) {
+		loop.WithActionsEnabled(true)
+	}
 	// This will run indefinitely unless limit is set to more than 0, or until the user exits.
 	loop.Run()
 
