@@ -43,7 +43,7 @@ In the above command I set my priorities to be my Steam games directory `D:\Stea
 You will need to set your profile to mining mode in your miner `.bat` file.
 
 Here's the contents of `C:\Mining\PhoenixMiner\start_miner.bat`, note that I am setting my Afterburner profile to `Profile1`.
-```
+```bat
 REM
 REM Example bat file for starting PhoenixMiner.exe to mine ETH
 REM
@@ -62,7 +62,7 @@ C:\Mining\PhoenixMiner\PhoenixMiner.exe -pool us1.ethermine.org:4444 -pool2 us2.
 pause
 ```
 Here's the contents of `C:\Mining\procswap\priority_script.bat`, the script that runs whenever a game starts up. I set my Afterburner profile to my gaming profile here.
-```
+```bat
 @echo off
 "C:\Program Files (x86)\MSI Afterburner\MSIAfterburner.exe" -Profile2
 ```
