@@ -2,7 +2,6 @@ package procswap
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/billiford/go-ps"
 	"github.com/eiannone/keyboard"
+	"github.com/karrick/godirwalk"
 	"github.com/logrusorgru/aurora"
 )
 
@@ -26,7 +26,7 @@ type Loop interface {
 	WithActionsEnabled(bool)
 	WithLimit(int)
 	WithPollInterval(int)
-	WithPriorities([]os.FileInfo)
+	WithPriorities([]*godirwalk.Dirent)
 	WithPriorityScript(string)
 	WithPs(ps.Ps)
 	WithSwaps([]Swap)
@@ -41,7 +41,7 @@ type loop struct {
 	// poll interval sets how much time in seconds we wait before polling the windows processes.
 	pollInterval int
 	// list of priorities defined at startup.
-	priorities []os.FileInfo
+	priorities []*godirwalk.Dirent
 	// a script that will run when any priority starts
 	priorityScript string
 	// ps is the interface for listing processes
@@ -69,7 +69,7 @@ func NewLoop() Loop {
 	// Define the loop.
 	loop := &loop{
 		swaps:        []Swap{},
-		priorities:   []os.FileInfo{},
+		priorities:   []*godirwalk.Dirent{},
 		limit:        0,
 		loopCount:    0,
 		ps:           ps.New(),
@@ -106,7 +106,7 @@ func (l *loop) WithPollInterval(pollInterval int) {
 }
 
 // WithPriorities sets the priority processes for the loop.
-func (l *loop) WithPriorities(priorities []os.FileInfo) {
+func (l *loop) WithPriorities(priorities []*godirwalk.Dirent) {
 	l.priorities = priorities
 }
 
@@ -353,9 +353,7 @@ func (l *loop) startPriorityScript() {
 	logInfo(fmt.Sprintf("%s %s...", aurora.Magenta("priority script"), aurora.Bold(l.priorityScript)), false)
 
 	cmd := exec.Command(l.priorityScript)
-
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		// If there is an error running the priority script, just log it and let the loop continue.
 		logFailed()
 		logError(err.Error())
