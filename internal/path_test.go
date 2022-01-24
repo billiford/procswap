@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
+	"github.com/karrick/godirwalk"
 
 	. "github.com/billiford/procswap/internal"
 	. "github.com/onsi/ginkgo"
@@ -13,7 +14,7 @@ import (
 
 var _ = Describe("Path", func() {
 	var (
-		infos   []os.FileInfo
+		infos   []*godirwalk.Dirent
 		ignored []string
 		path    string
 		err     error

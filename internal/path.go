@@ -3,16 +3,16 @@ package procswap
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/karrick/godirwalk"
 	"github.com/logrusorgru/aurora"
 )
 
 // ProcessList lists all .exe files in a given directory.
-func ProcessList(path string, ignored []string) ([]os.FileInfo, error) {
-	files := []os.FileInfo{}
+func ProcessList(path string, ignored []string) ([]*godirwalk.Dirent, error) {
+	files := []*godirwalk.Dirent{}
 
 	// Check to make sure it exists first.
 	info, err := os.Stat(path)
@@ -26,7 +26,12 @@ func ProcessList(path string, ignored []string) ([]os.FileInfo, error) {
 	// Don't check if it's a .exe if the user has passed in a
 	// single file as priority.
 	if !info.IsDir() {
-		files = append(files, info)
+		de, err := godirwalk.NewDirent(path)
+		if err != nil {
+			return nil, fmt.Errorf("error creating new dirent for priority file %s: %w", path, err)
+		}
+
+		files = append(files, de)
 
 		return files, nil
 	}
@@ -36,16 +41,19 @@ func ProcessList(path string, ignored []string) ([]os.FileInfo, error) {
 	// Only list files that end in '.exe'.
 	libRegEx := regexp.MustCompile("^.*.exe$")
 
-	err = filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
-		if err == nil && libRegEx.MatchString(info.Name()) {
-			if contains(ignored, info.Name()) {
-				logInfo(fmt.Sprintf("%s ignoring priority %s", aurora.Cyan("setup"), aurora.Bold(info.Name())))
-			} else {
-				files = append(files, info)
+	err = godirwalk.Walk(path, &godirwalk.Options{
+		Callback: func(osPathname string, de *godirwalk.Dirent) error {
+			if libRegEx.MatchString(de.Name()) {
+				if contains(ignored, de.Name()) {
+					logInfo(fmt.Sprintf("%s ignoring priority %s", aurora.Cyan("setup"), aurora.Bold(de.Name())))
+				} else {
+					files = append(files, de)
+				}
 			}
-		}
 
-		return nil
+			return nil
+		},
+		Unsorted: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error walking %s searching for .exes: %w", path, err)

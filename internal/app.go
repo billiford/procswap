@@ -2,11 +2,11 @@ package procswap
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/karrick/godirwalk"
 	"github.com/logrusorgru/aurora"
 	"github.com/urfave/cli/v2"
 )
@@ -135,8 +135,7 @@ func run(c *cli.Context) error {
 		logInfo(fmt.Sprintf("%s registered priority script %s", aurora.Cyan("setup"), aurora.Bold(ps)))
 	}
 	// Set limit for loop to run.
-	limit := c.Int(flagLimitName)
-	if limit > 0 {
+	if limit := c.Int(flagLimitName); limit > 0 {
 		loop.WithLimit(limit)
 	}
 	// Set the poll interval.
@@ -154,9 +153,9 @@ func run(c *cli.Context) error {
 	return nil
 }
 
-func listExecutables(paths, ignored []string) []os.FileInfo {
+func listExecutables(paths, ignored []string) []*godirwalk.Dirent {
 	// These are our "priority executables".
-	pe := []os.FileInfo{}
+	pe := []*godirwalk.Dirent{}
 
 	// Priority and swap process setup.
 	for _, pd := range paths {
@@ -173,10 +172,9 @@ func listExecutables(paths, ignored []string) []os.FileInfo {
 	return pe
 }
 
-func swaps(pe []os.FileInfo, sp []string) []Swap {
+func swaps(pe []*godirwalk.Dirent, sp []string) []Swap {
 	// Make sure there's no intersection here, that would be a nightmare.
-	err := intersect(pe, sp)
-	if err != nil {
+	if err := intersect(pe, sp); err != nil {
 		logFatal(err.Error())
 	}
 
@@ -188,7 +186,7 @@ func swaps(pe []os.FileInfo, sp []string) []Swap {
 	return swaps
 }
 
-func intersect(files []os.FileInfo, swaps []string) error {
+func intersect(files []*godirwalk.Dirent, swaps []string) error {
 	filesMap := map[string]bool{}
 
 	for _, file := range files {
